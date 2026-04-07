@@ -1,0 +1,309 @@
+meta:
+  title: Charter simulation derivative
+  version: 0.8-draft
+  source: charter/charter.md
+  charter_version: 0.8
+  status: aligned-draft
+
+polity:
+  sovereign_body: subscribers
+  membership_unit: subscriber
+  representation_unit: representation_token
+  national_decision_threshold: 0.60
+
+actors:
+  subscriber:
+    description: Base political member holding one representation token.
+  representative:
+    description: Subscriber receiving delegated representation from other Subscribers.
+  authority:
+    description: Governance body formed under Article II with sealed functional scope.
+  charter_court:
+    description: Constitutional court with authority over rights, scope conflicts, and Charter interpretation.
+  eco:
+    description: Executive Coordination Office for cross-Authority logistics, information, and administration.
+  caes:
+    description: Cross-Authority Enforcement Service executing Charter Court orders only.
+
+authority_rules:
+  formation_thresholds:
+    coercive: 0.75
+    non_coercive: 0.60
+  charter_requirements:
+    - scope
+    - funding_sources
+    - renewal_process
+    - oversight_structures
+  scope_rules:
+    sealed_scope_required: true
+    out_of_scope_actions_void: true
+    no_unenumerated_powers: true
+    scope_expansion_requires_rechartering: true
+    scope_transfer_requires_rechartering: true
+  review_and_renewal:
+    structural_review_interval_years: 5
+    renewal_threshold: 0.50
+    mandatory_reauthorization:
+      satisfaction_threshold: 0.40
+      duration_months: 12
+  conflict_resolution:
+    coordination_council:
+      selection: random
+      max_term_months: 12
+    harmonization_rule:
+      higher_majority_prevails: true
+      narrower_scope_breaks_ties: true
+      charter_court_harmonization_order_max_months: 12
+    territorial_fallback:
+      direct_physical_mandate_prevails: true
+      fallback_to_lead_emergency_authority: true
+      physical_operations_only: true
+      charter_court_reviewable: true
+
+legislation:
+  default_pass_threshold: simple_majority
+  duration_bands:
+    - min_approval: 0.51
+      max_approval: 0.54
+      duration_years: 1
+    - min_approval: 0.55
+      max_approval: 0.64
+      duration_years: 3
+    - min_approval: 0.65
+      max_approval: 0.74
+      duration_years: 6
+    - min_approval: 0.75
+      max_approval: 1.00
+      duration_years: 10
+  expired_acts_return_to_review: true
+  emergency_acts_follow_article_v: true
+
+emergency:
+  qualifying_conditions:
+    - threat_to_life
+    - threat_to_essential_infrastructure
+    - threat_to_security
+    - threat_to_governance_continuity
+  lead_emergency_authority:
+    initial_duration_days: 30
+    extension_to_days: 90
+    extension_requires_all_affected_authorities: true
+    extension_beyond_one_year_requires_national_decision: true
+  publication_deadline_days: 7
+  expires_with_emergency: true
+  charter_court_review_required: true
+  provisional_activation:
+    enabled: true
+    max_duration_hours: 72
+    notify_eco_immediately: true
+    notify_charter_court_immediately: true
+    limited_to_life_or_critical_system_preservation: true
+
+representation:
+  delegation:
+    token_per_subscriber: 1
+    delegation_is_voluntary: true
+    delegation_is_reversible: true
+    activation_delay_days: 30
+    fractional_delegation_permitted: true
+    max_changes_per_12_months: 2
+    public_log_required: true
+  weighting:
+    formula_text: W = R^0.75
+    intended_properties:
+      - monotonic
+      - concave
+      - diminishing_marginal_influence
+      - normalized_at_single_token
+      - amendable_only_by_charter_amendment
+    notation_status: incomplete_in_canonical_text
+  caps:
+    max_raw_delegation_share: 0.01
+    weighted_delegation_cannot_exceed_cap: true
+    excess_returned_for_reassignment: true
+    annual_public_audit_required: true
+    coalitions_treated_as_single_representative: true
+    consolidated_persona_rule: true
+  stabilization:
+    trigger_share_of_tokens: 0.05
+    trigger_window_days: 14
+    extension_days: 30
+    affects_activation_dates_only: true
+    charter_court_may_suspend_for:
+      - fraud
+      - coercion
+      - coordinated_manipulation
+    repeated_trigger_window_months: 6
+    repeated_trigger_creates_presumption_of_manipulation: true
+
+petitions:
+  origination_open_to_all_subscribers: true
+  support_threshold:
+    percent_of_subscribers: 0.001
+    absolute_supporters: 10000
+    threshold_rule: whichever_is_met
+  deliberation_assembly:
+    selection: random
+    review_dimensions:
+      - scope
+      - feasibility
+      - rights_compliance
+  approved_petitions_become: draft_acts
+  cooling_period_days: 30
+  no_scope_fallback:
+    creates_temporary_authority: true
+    max_duration_months: 12
+  protections:
+    equal_access_required: true
+    max_active_petitions_supported_per_subscriber: 10
+    merge_substantially_similar_petitions: true
+
+rights:
+  baseline_rights:
+    - due_process
+    - transparent_legislative_proceedings
+    - transparent_administrative_proceedings
+    - participation_in_petitioning_delegation_and_governance
+    - access_to_publicly_logged_information_except_privacy_protected_data
+    - no_compelled_delegation
+    - no_compelled_association
+  unalienable_rights:
+    - life
+    - bodily_autonomy
+    - freedom_of_thought
+    - freedom_of_expression
+    - freedom_of_conscience
+    - privacy
+    - secure_possession_of_personal_data
+    - freedom_from_coercion_except_under_due_process
+    - equitable_treatment_and_protection
+  civil_and_procedural_rights:
+    - redress_before_impartial_tribunals
+    - transparent_enforcement_processes
+    - political_participation_without_discrimination
+    - freedom_of_assembly_and_association
+    - freedom_of_movement_subject_to_narrow_time_limited_safety_measures
+
+judiciary:
+  charter_court:
+    seats: 9
+    selection: lot
+    term_years: 6
+    renewable: false
+    jurisdiction:
+      - unalienable_rights
+      - civil_rights
+      - authority_scope_conflicts
+      - constitutional_interpretation
+    invalidation_vote_requirement: 6_of_9
+    may_legislate: false
+    may_initiate_budgetary_measures: false
+    decisions_bind_all_authorities: true
+  authority_courts:
+    permitted: true
+    appeals_to_charter_court_limited_to:
+      - rights_issues
+      - cross_authority_issues
+  caes:
+    executes_only_charter_court_orders: true
+    selection: lot
+    term_months: 18
+    may_initiate_enforcement: false
+    may_initiate_policy: false
+    authorities_may_not_obstruct: true
+  clemency:
+    emergency_stay_max_days: 30
+    stay_issuers:
+      - charter_court
+      - three_member_lot_selected_panel
+    clemency_jury_size: 12
+    clemency_vote_threshold: 0.6667
+    clemency_types:
+      - pardon
+      - commutation
+      - reprieve
+    eligible_petitioners:
+      - affected_individual
+      - delegate
+      - counsel
+      - prosecuting_authority
+    final_except_procedural_defect_review: true
+    public_logging_required_except_privacy_protected_portions: true
+
+coordination_and_defense:
+  eco:
+    functions:
+      - logistics
+      - information_coordination
+      - administrative_coordination
+    staffed_by: qualified_persons_for_emergency_coordination
+    public_logging_real_time: true
+    executive_director:
+      election_method: ranked_choice_vote
+      electorate: all_subscribers
+      term_years: 4
+      max_terms: 2
+    may_declare_emergencies: false
+    may_command_coercive_force: false
+  defense_authority:
+    creation_or_dissolution_threshold: 0.75
+    scope:
+      - external_defense
+      - external_intelligence
+    civilian_oversight_board_selected_by_lot: true
+    separate_from_civil_enforcement: true
+    domestic_action_prohibited_except_validated_article_v_emergency: true
+    political_neutrality_required: true
+    funding_through_treasury_authority: true
+
+treasury:
+  treasury_authority:
+    permanent: true
+    executes_charter_authorized_fiscal_operations: true
+    may_propose_taxes: false
+    may_redirect_funds: false
+    may_exercise_policy_discretion: false
+    administrators:
+      qualification_domain: fiscal_administration
+      selection: lot
+      term_years: 3
+      renewable: false
+  responsibilities:
+    - collect_authorized_revenues
+    - custody_of_public_ledgers
+    - disburse_directed_funds
+    - manage_unused_fund_reversions
+    - standardize_fiscal_data
+  tax_categories:
+    - activity_linked_levies
+    - access_fees
+    - risk_indexed_assessments
+    - externality_charges
+    - general_contribution_surcharge
+    - emergency_levy
+    - authority_specific_surtaxes
+  prohibited_taxation:
+    - taxes_on_delegation_patterns
+    - retrospective_taxes
+    - non_expiring_taxes
+    - compelled_alignment_taxes
+    - taxes_outside_enumerated_categories
+  transparency_and_audit:
+    real_time_ledger: true
+    annual_audits: true
+    charter_court_review: true
+
+supremacy_and_transition:
+  supremacy:
+    charter_is_supreme_governing_instrument: true
+    conflicting_lower_law_void_to_extent_of_conflict: true
+    adopting_jurisdictions_incorporate_authorities_within_scope: true
+  adoption:
+    requires_national_decision: true
+  transition:
+    initial_subscribers_are_voluntary_registrants: true
+    provisional_acbs_valid_up_to_years: 3
+    initial_qualified_persons_drawn_from_publicly_credentialed_professionals: true
+    initial_authorities_may_use_simplified_majority_for_first_charters: true
+    transition_expiry:
+      first_full_consolidation_cycle_or_years: 10
