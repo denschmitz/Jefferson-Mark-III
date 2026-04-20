@@ -18,7 +18,7 @@ This system is built around five basic ideas.
 
 ## How Representation Works
 
-Every Subscriber gets one representation token. They can delegate it to any Representative. That delegation is voluntary and reversible, but it does not take effect instantly. Changes activate after thirty days, and there are limits on how often people can switch.
+Every Subscriber gets one representation token. They can delegate it to any Representative. That delegation is voluntary and reversible, but it does not take effect instantly. Changes activate after thirty days, and there are limits on how often people can switch. So representation can change over time without waiting for a fixed election cycle.
 
 The Charter also tries to prevent popularity from turning into domination. Delegation is weighted using a concave formula, which means bigger coalitions still gain influence, but not in a straight line. The system also caps how much representation any one Representative can hold and treats coordinated coalitions as one person for cap purposes.
 
@@ -44,7 +44,7 @@ This is the Charter's way of saying that force, regulation, and adjudication nee
 
 ## How Laws Work
 
-Legislative Acts usually pass by simple majority. But the Charter adds an unusual rule: stronger approval gives a longer lifespan.
+Legislative Acts usually pass by simple majority. In practice, that means a proposal survives if the relevant vote clears the threshold before the decision window closes. The Charter then adds an unusual rule: stronger approval gives a longer lifespan.
 
 - 51-54% support gives a law one year.
 - 55-64% gives three years.

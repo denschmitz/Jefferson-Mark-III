@@ -44,10 +44,14 @@ jefferson-mark-iii/
 │   └── explainers/
 │       ├── plain_language.md
 │       ├── deep_explainer.md
-│       └── faq.md
+│       ├── faq.md
+│       └── implementation_scenarios.md
 ├── annotations/
 │   └── annotated_charter.md
 └── governance/
+    ├── issues/
+    │   ├── README.md
+    │   └── formalize_scoped_electorates_for_inherently_territorial_authorities.md
     ├── contribution_guidelines.md
     └── change_proposal_template.md
 ```
