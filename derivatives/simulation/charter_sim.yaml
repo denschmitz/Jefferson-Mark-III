@@ -4,12 +4,22 @@ meta:
   source: charter/charter.md
   charter_version: 0.8
   status: aligned-draft
+  derivative_type: rules_configuration
+  alignment_review_date: 2026-05-04
 
 polity:
   sovereign_body: subscribers
   membership_unit: subscriber
   representation_unit: representation_token
   national_decision_threshold: 0.60
+  national_decision:
+    default_approval_threshold: 0.60
+    denominator: all_subscribers
+    unresolved_mechanics:
+      - quorum_rules
+      - abstention_handling
+      - eligibility_snapshot_timing
+      - rapid_membership_change_handling
 
 actors:
   subscriber:
@@ -24,6 +34,22 @@ actors:
     description: Executive Coordination Office for cross-Authority logistics, information, and administration.
   caes:
     description: Cross-Authority Enforcement Service executing Charter Court orders only.
+  qualified_person:
+    description: Person certified by an Authority-Certification Body for a designated service domain.
+  authority_certification_body:
+    description: Independent certification body for Qualified Persons.
+  coordination_council:
+    description: Randomly selected body resolving Authority scope conflicts for a term of no more than twelve months.
+  deliberation_assembly:
+    description: Randomly selected body evaluating petitions for scope, feasibility, and rights compliance.
+  arbitration_authority:
+    description: Randomly selected one-year body for unresolved consolidation disputes.
+  consolidation_conflict_authority:
+    description: Temporary seven-member body adjudicating disputes during consolidation cycles.
+  clemency_jury:
+    description: Twelve-member lot-selected body empowered to grant individual clemency by two-thirds vote.
+  civilian_oversight_board:
+    description: Lot-selected Qualified Persons supervising the Defense Authority.
 
 authority_rules:
   formation_thresholds:
@@ -43,9 +69,14 @@ authority_rules:
   review_and_renewal:
     structural_review_interval_years: 5
     renewal_threshold: 0.50
+    renewal_electorate: subscribers_within_authority_scope
     mandatory_reauthorization:
       satisfaction_threshold: 0.40
       duration_months: 12
+      satisfaction_measurement_status: unresolved_in_canonical_text
+  inter_authority_compacts:
+    expiry_years: 1
+    renewal_requires_explicit_reauthorization: true
   conflict_resolution:
     coordination_council:
       selection: random
@@ -59,6 +90,9 @@ authority_rules:
       fallback_to_lead_emergency_authority: true
       physical_operations_only: true
       charter_court_reviewable: true
+  scoped_electorates:
+    initial_formation_electorate_status: unresolved_for_inherently_territorial_authorities
+    renewal_uses_subscribers_within_scope: true
 
 legislation:
   default_pass_threshold: simple_majority
@@ -77,6 +111,11 @@ legislation:
       duration_years: 10
   expired_acts_return_to_review: true
   emergency_acts_follow_article_v: true
+  funding_acts_required_for_tax_activation: true
+  fiscal_acts:
+    auto_sunset_required: true
+    scope_alignment_required: true
+    rate_caps_required: true
 
 emergency:
   qualifying_conditions:
@@ -85,6 +124,8 @@ emergency:
     - threat_to_security
     - threat_to_governance_continuity
   lead_emergency_authority:
+    recognition_body: eco
+    recognition_basis: functional_jurisdiction_over_precipitating_threat
     initial_duration_days: 30
     extension_to_days: 90
     extension_requires_all_affected_authorities: true
@@ -117,6 +158,11 @@ representation:
       - normalized_at_single_token
       - amendable_only_by_charter_amendment
     notation_status: incomplete_in_canonical_text
+    unresolved_mechanics:
+      - domain_statement
+      - normalization_rule
+      - aggregation_constraints
+      - relationship_between_raw_weighted_and_voting_power
   caps:
     max_raw_delegation_share: 0.01
     weighted_delegation_cannot_exceed_cap: true
@@ -153,6 +199,7 @@ petitions:
   no_scope_fallback:
     creates_temporary_authority: true
     max_duration_months: 12
+    governance_mechanics_status: unresolved_in_canonical_text
   protections:
     equal_access_required: true
     max_active_petitions_supported_per_subscriber: 10
@@ -229,6 +276,59 @@ judiciary:
       - prosecuting_authority
     final_except_procedural_defect_review: true
     public_logging_required_except_privacy_protected_portions: true
+    may_not_alter_acts: true
+    may_not_grant_prospective_immunity: true
+    may_not_expand_authority_scope: true
+    may_not_modify_charter_rights: true
+
+consolidation:
+  decennial_review_interval_years: 10
+  governance_credit_limit:
+    authorities_per_subscribers: 1_per_50000
+    override_requires_national_decision: true
+  transparency_required: true
+  unresolved_disputes_referred_to:
+    body: arbitration_authority
+    selection: random
+    term_years: 1
+  appeals:
+    to_charter_court_for:
+      - rights_violations
+      - procedural_violations
+  consolidation_conflict_authority:
+    enabled: true
+    seats: 7
+    qualification_domain: civic_oversight
+    selection: lot
+    term_months: 18
+    renewable: false
+    resolves:
+      - merger_or_dissolution_disputes
+      - strategic_obstruction_allegations
+      - artificial_scope_fragmentation_claims
+      - decoy_authority_claims
+      - consolidation_metric_challenges
+      - authority_charter_conflicts_with_consolidation_mandates
+    tests:
+      - functional_necessity_test
+      - scope_integrity_test
+      - anti_fragmentation_test
+      - efficiency_test
+    majority_vote_may_order:
+      - mergers
+      - separations
+      - scope_boundary_adjustments
+      - decoy_authority_invalidation
+      - subscriber_reauthorization
+    prohibited_actions:
+      - modify_charter_text
+      - modify_legislative_acts
+      - modify_funding_levels
+      - expand_authority_scope
+    appeals_to_charter_court_limited_to:
+      - procedural_defect
+      - rights_violation
+    public_logging_required: true
 
 coordination_and_defense:
   eco:
@@ -288,10 +388,55 @@ treasury:
     - non_expiring_taxes
     - compelled_alignment_taxes
     - taxes_outside_enumerated_categories
+  activation_and_duration:
+    funding_acts_required: true
+    auto_sunset_required: true
+    scope_alignment_required: true
+    rate_caps_required: true
+  distribution_to_authorities:
+    dedicated_accounts_required: true
+    use_restriction_required: true
+    conditional_releases_supported: true
+    transfer_rules_required: true
+    unused_fund_reversion_required: true
+  distribution_to_individuals:
+    direct_disbursement_rules_required: true
+    eligibility_boundaries_required: true
+    privacy_protections_required: true
   transparency_and_audit:
     real_time_ledger: true
     annual_audits: true
     charter_court_review: true
+
+amendment_and_interpretation:
+  charter_amendment_threshold: 0.70
+  charter_amendment_requires_national_decision: true
+  minimal_necessary_power_rule: true
+  emergency_continuity_procedures_apply_until_normal_governance_resumes: true
+
+definitions:
+  lead_emergency_authority: authority_first_declaring_qualifying_emergency_and_recognized_by_eco_as_functionally_jurisdictional
+  national_decision: approval_threshold_requiring_60_percent_of_all_subscribers_unless_otherwise_specified
+  privacy_protected_information:
+    includes:
+      - health
+      - identity
+      - communication
+      - finances
+      - location
+      - other_intimate_details_intrinsic_to_personal_autonomy
+    may_be_operationalized_by_legislative_acts: true
+    may_not_be_narrowed_to_infringe_articles_xvi_or_xvii: true
+  qualified_person: certified_by_authority_certification_body
+  authority: governance_body_formed_under_article_ii_with_sealed_functional_scope
+  representative: subscriber_receiving_delegation_tokens_from_others
+  authority_certification_bodies:
+    independent: true
+    certify_qualified_persons: true
+    standards_publicly_transparent: true
+    standards_open_to_examination: true
+    charter_court_review: true
+    discrimination_limited_to_competence_and_ethical_criteria: true
 
 supremacy_and_transition:
   supremacy:
@@ -307,3 +452,53 @@ supremacy_and_transition:
     initial_authorities_may_use_simplified_majority_for_first_charters: true
     transition_expiry:
       first_full_consolidation_cycle_or_years: 10
+
+mesa_integration:
+  intended_role: configuration_for_charter_rules_engine_consumed_by_mesa_adapter
+  not_executable_by_mesa_directly: true
+  model_time_unit: day
+  random_selection_terms:
+    - random
+    - lot
+  recommended_agent_categories:
+    - subscriber
+    - representative
+    - authority
+    - court_or_review_body
+    - coordination_body
+  recommended_engine_services:
+    - yaml_loading_and_validation
+    - threshold_evaluation
+    - scope_validation
+    - delegation_weighting
+    - cap_enforcement
+    - stabilization_scheduling
+    - petition_progression
+    - emergency_lifecycle
+    - act_duration_calculation
+    - rights_constraint_checks
+    - public_log_event_generation
+  recommended_mesa_adapter_services:
+    - model_initialization_from_engine_state
+    - agent_creation_and_registration
+    - step_order_coordination
+    - agentset_queries
+    - datacollector_metric_exports
+  compatibility_notes:
+    - Use Mesa as the agent-based runtime and keep Charter interpretation in a pure rules engine.
+    - Treat this YAML as structured constitutional input, not as Mesa code.
+    - Preserve unresolved canonical ambiguity as explicit engine gaps until the Charter is amended or guidance is supplied.
+
+known_simulation_gaps:
+  - representation_weighting_formula_mechanics
+  - subscriber_approval_denominator_quorum_and_abstention_rules
+  - raw_vs_weighted_voting_power_relationship
+  - coercive_authority_classification_test
+  - temporary_authority_governance_mechanics
+  - scoped_electorates_for_inherently_territorial_authorities
+  - satisfaction_rating_measurement
+  - coalition_detection_standards
+  - deliberation_assembly_powers
+  - emergency_extension_deadlock_fallback
+  - charter_court_review_standards
+  - authority_certification_body_operational_governance

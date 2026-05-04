@@ -9,6 +9,12 @@
 
 ## Change Log
 
+### 0.8-draft simulation alignment
+
+- Date: 2026-05-04
+- Editor: Codex
+- Summary: Reviewed the simulation derivative against canonical `CHARTER v0.8`, expanded `derivatives/simulation/charter_sim.yaml` for missing consolidation, amendment, definition, ACB, Treasury, and Mesa-integration metadata, documented unresolved simulation gaps, added `docs/simulation_requirements.md`, and scaffolded the future simulation code folder.
+
 ### 0.8-draft
 
 - Date: 2026-04-07
