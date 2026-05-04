@@ -1,0 +1,12 @@
+scenario_id: basic-delegation
+scenario_version: 0.1.0
+charter_derivative_path: derivatives/simulation/charter_sim.yaml
+random_seed: 123
+duration: 30
+tick_duration: day
+output_path: simulation/runs/basic-delegation
+population_size: 100
+agent_distributions:
+  subscriber: 100
+output_settings:
+  format: json

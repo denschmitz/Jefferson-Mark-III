@@ -1,0 +1,37 @@
+scenario_id: basic_delegation_stability
+scenario_version: 0.1.0
+charter_derivative_path: derivatives/simulation/charter_sim.yaml
+random_seed: 101
+duration: 2
+tick_duration: day
+output_path: simulation/runs/basic_delegation_stability
+population_size: 2
+agent_distributions:
+  subscriber:
+    count: 2
+output_settings:
+  format: json
+initial_state:
+  subscribers:
+    - subscriber_id: sub-1
+      token_id: token-1
+      active_status: true
+      group_ids: [general]
+    - subscriber_id: sub-2
+      token_id: token-2
+      active_status: true
+      group_ids: [general]
+  representatives:
+    - representative_id: rep-1
+      subscriber_id: sub-1
+event_schedule:
+  - event_type: delegation_create
+    submitted_tick: 0
+    effective_tick: 0
+    actor_id: sub-2
+    target_id: rep-1
+    payload:
+      source_subscriber_id: sub-2
+      target_representative_id: rep-1
+      token_share: 1.0
+      activation_delay_ticks: 1

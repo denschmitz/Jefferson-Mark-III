@@ -24,7 +24,7 @@ The Charter contains threshold, timing, scope, review, emergency, representation
 
 ### Rationale
 
-The simulation must be traceable to the Charter and must not become an alternate constitutional source. Machine-readable derivatives and requirements documents support implementation but do not supersede the canonical Charter.
+The simulation is traceable to the Charter and is not an alternate constitutional source. Machine-readable derivatives and requirements documents assist implementation but do not supersede the canonical Charter.
 
 ### Requirements
 
@@ -36,6 +36,21 @@ The simulation must be traceable to the Charter and must not become an alternate
 | SIM-REQ-013 | If `charter_sim.yaml` conflicts with `charter/charter.md`, the YAML shall be treated as defective. | Validation test using injected mismatch metadata. |
 | SIM-REQ-014 | Simulation-only abstractions shall be explicitly marked as simulation abstractions in requirements, configuration, or output metadata. | Static review of scenario schema and generated manifest. |
 | SIM-REQ-015 | Charter ambiguities shall be represented as open questions, configurable assumptions, or implementation-blocking validation errors. | Gap-handling unit tests. |
+
+### Charter Source Traceability
+
+Each implemented rule is traceable to a Charter source location or explicitly labeled as a simulation abstraction. Traceability is a first-pass compliance requirement, not a legal interpretation layer.
+
+| ID | Requirement | Suggested Verification |
+| --- | --- | --- |
+| SIM-REQ-016 | Each engine rule shall have a stable `rule_id`. | Rule registry test. |
+| SIM-REQ-017 | Each engine rule shall include `source_document`, `source_article`, `source_section`, and `source_clause` fields when derived from the Charter. | Rule traceability schema test. |
+| SIM-REQ-018 | Each engine rule derived from `charter_sim.yaml` shall include the YAML path used as `derivative_path`. | Rule traceability schema test. |
+| SIM-REQ-019 | Each simulation abstraction rule shall include `abstraction_label` and `abstraction_rationale`. | Rule traceability schema test. |
+| SIM-REQ-020A | The engine shall reject a rule definition that lacks both Charter source traceability and simulation abstraction metadata. | Invalid rule registry test. |
+| SIM-REQ-020B | Each rule decision log entry shall include the `rule_id` used to make the decision. | Decision log test. |
+| SIM-REQ-020C | Each scenario manifest shall list the Charter-derived rules and simulation abstraction rules enabled for the run. | Manifest test. |
+| SIM-REQ-020D | The validation report shall identify any enabled simulation abstraction rule before the run executes. | Validation report test. |
 
 ## 3. Core Simulation Concepts
 
@@ -66,11 +81,67 @@ The engine needs stable concepts before Mesa agents are implemented. These conce
 | SIM-REQ-036 | The engine shall represent a Simulation Event as a timestamped state transition request with input data, rule decision output, and provenance. | Event log schema test. |
 | SIM-REQ-037 | The engine shall represent a Simulation Tick as one discrete time advance in the configured simulation calendar. | Tick advancement test. |
 
+### Core Data And Event Contracts
+
+The following requirements convert core concepts into minimum testable records. Field names are normative for first-pass implementation unless an implementation supplies a documented compatibility mapping.
+
+| ID | Requirement | Suggested Verification |
+| --- | --- | --- |
+| SIM-REQ-500 | The engine shall store each Subscriber record with `subscriber_id`, `token_id`, `active_status`, and `group_ids`. | Subscriber record schema test. |
+| SIM-REQ-501 | The engine shall reject a Subscriber record missing `subscriber_id` or `token_id`. | Invalid state validation test. |
+| SIM-REQ-502 | The engine shall store each Representative record with `representative_id`, `subscriber_id`, `raw_delegation_total`, `weighted_delegation_total`, and `coalition_id`. | Representative record schema test. |
+| SIM-REQ-503 | The engine shall compute `raw_delegation_total` from active Delegation records rather than accepting it as authoritative input. | Aggregation test. |
+| SIM-REQ-504 | The engine shall compute `weighted_delegation_total` from active Delegation records and configured weighting assumptions. | Weight aggregation test. |
+| SIM-REQ-505 | The engine shall store each Delegation record with `delegation_id`, `source_subscriber_id`, `target_representative_id`, `token_share`, `submitted_tick`, `activation_tick`, `status`, and `reason`. | Delegation record schema test. |
+| SIM-REQ-506 | The engine shall reject a Delegation record whose `token_share` is less than or equal to zero. | Invalid delegation test. |
+| SIM-REQ-507 | The engine shall reject a set of active Delegation records whose `token_share` total exceeds one for a single Subscriber. | Token conservation test. |
+| SIM-REQ-508 | The engine shall store each Authority record with `authority_id`, `charter_id`, `authority_type`, `coercive_status`, `scope_id`, `lifecycle_status`, `activation_tick`, `review_due_tick`, and `dissolution_tick`. | Authority record schema test. |
+| SIM-REQ-509 | The engine shall reject an active Authority record without an associated Authority Charter record. | Invalid Authority state test. |
+| SIM-REQ-510 | The engine shall store each Authority Charter record with `charter_id`, `scope_id`, `funding_sources`, `renewal_process`, `oversight_structures`, `formation_threshold`, and `approval_record_id`. | Authority Charter schema test. |
+| SIM-REQ-511 | The engine shall store each Scope record with `scope_id`, `function`, `territory`, `population_affected`, `permitted_powers`, `prohibited_powers`, `resource_authority`, `enforcement_authority`, `review_interval`, `emergency_powers`, and `authority_references`. | Scope schema test. |
+| SIM-REQ-512 | The engine shall store each Simulation Event with `event_id`, `event_type`, `submitted_tick`, `effective_tick`, `actor_id`, `target_id`, `payload`, `status`, and `provenance`. | Event schema test. |
+| SIM-REQ-513 | The engine shall assign a stable `event_id` to every accepted Simulation Event. | Event creation test. |
+| SIM-REQ-514 | The engine shall record every rule decision with `decision_id`, `event_id`, `rule_id`, `input_state_hash`, `result`, `reason`, and `decision_tick`. | Rule decision log test. |
+| SIM-REQ-515 | The engine shall reject any event whose `event_type` is not defined by the engine or scenario schema. | Invalid event test. |
+| SIM-REQ-516 | The engine shall preserve rejected events in the validation report with rejection reason and source provenance. | Invalid event output test. |
+| SIM-REQ-517 | The engine shall produce a state hash after each tick. | Replay integrity test. |
+| SIM-REQ-518 | The engine shall produce identical state hashes for identical inputs, engine version, and seed. | Deterministic replay test. |
+
+### Approval Record Schema
+
+Approval records are the common input for Authority formation, Authority renewal, National Decisions, amendments, emergency extensions, and governance credit overrides. Approval mechanics remain constrained by `SIM-GAP-002` where the Charter does not yet define denominator, quorum, abstention, or snapshot rules.
+
+| ID | Requirement | Suggested Verification |
+| --- | --- | --- |
+| SIM-REQ-530 | The engine shall store each Approval Record with `approval_record_id`, `decision_type`, `subject_id`, `electorate_basis`, `eligible_count`, `approval_count`, `rejection_count`, `abstention_count`, `approval_ratio`, `threshold_required`, `threshold_result`, `snapshot_tick`, and `assumptions_used`. | Approval record schema test. |
+| SIM-REQ-531 | The engine shall compute `approval_ratio` from approval record counts and declared denominator assumptions. | Approval formula test. |
+| SIM-REQ-532 | The engine shall reject an Approval Record whose `approval_count`, `rejection_count`, or `abstention_count` is negative. | Invalid approval record test. |
+| SIM-REQ-533 | The engine shall reject an Approval Record whose counted votes exceed `eligible_count` under the declared denominator assumption. | Approval conservation test. |
+| SIM-REQ-534 | The engine shall identify the threshold source rule used for `threshold_required`. | Approval traceability test. |
+| SIM-REQ-535 | The engine shall mark `threshold_result` as pass only when `approval_ratio` is greater than or equal to `threshold_required`. | Threshold comparison test. |
+| SIM-REQ-536 | The engine shall include `assumptions_used` when approval mechanics rely on unresolved Charter denominator, quorum, abstention, or snapshot assumptions. | Gap assumption test. |
+| SIM-REQ-537 | The engine shall fail validation when an Approval Record requires unresolved approval assumptions and `assumptions_used` is empty. | Invalid approval scenario test. |
+| SIM-REQ-538 | The engine shall preserve the original Approval Record used for each threshold decision in the event log or final state provenance. | Provenance test. |
+| SIM-REQ-539 | The engine shall support Approval Record `decision_type` values for `authority_formation`, `authority_renewal`, `national_decision`, `charter_amendment`, `emergency_extension`, and `governance_credit_override`. | Approval decision type validation test. |
+
+### Event Processing Requirements
+
+| ID | Requirement | Suggested Verification |
+| --- | --- | --- |
+| SIM-REQ-520 | The engine shall process events in ascending `effective_tick` order. | Event ordering test. |
+| SIM-REQ-521 | The engine shall process events with the same `effective_tick` using a deterministic priority order. | Same-tick ordering test. |
+| SIM-REQ-522 | The deterministic priority order shall be declared in scenario manifest or engine metadata. | Manifest validation test. |
+| SIM-REQ-523 | The engine shall transform accepted input events into state changes only through rule decisions. | State transition audit test. |
+| SIM-REQ-524 | The engine shall record a no-op rule decision when an accepted event produces no state change. | No-op event test. |
+| SIM-REQ-525 | The engine shall expose pre-state and post-state references for each state-changing rule decision. | Audit log test. |
+| SIM-REQ-526 | The engine shall complete all event processing for a tick before calculating per-tick metrics. | Metrics timing test. |
+| SIM-REQ-527 | The engine shall report unresolved required assumptions before processing the first tick. | Startup validation test. |
+
 ## 4. Agent Types For First Pass
 
 ### Rationale
 
-First-pass agents should be simple enough to isolate Charter mechanics. Agent behavior exists to generate rule-relevant inputs, not to model high-fidelity political psychology.
+First-pass agents are intentionally simple enough to isolate Charter mechanics. Agent behavior exists to generate rule-relevant inputs, not to model high-fidelity political psychology.
 
 ### Common Agent Requirements
 
@@ -81,6 +152,10 @@ First-pass agents should be simple enough to isolate Charter mechanics. Agent be
 | SIM-REQ-042 | Each agent shall emit actions as simulation events. | Agent action test. |
 | SIM-REQ-043 | Each agent shall accept deterministic configuration parameters. | Scenario loading test. |
 | SIM-REQ-044 | Any stochastic agent choice shall use the scenario random seed. | Deterministic replay test. |
+| SIM-REQ-045 | Each agent action event shall include `actor_id`, `event_type`, `submitted_tick`, and action-specific payload. | Agent event schema test. |
+| SIM-REQ-046 | Each agent shall receive only the scenario inputs and public engine state declared for its agent type. | Agent boundary test. |
+| SIM-REQ-047 | Each agent shall produce zero or more events per tick according to its configured behavior model. | Agent step test. |
+| SIM-REQ-048 | Each agent shall expose a deterministic idle outcome when no configured action condition is met. | Idle behavior test. |
 
 ### Subscriber Agent
 
@@ -97,9 +172,14 @@ Requirements:
 
 | ID | Requirement | Suggested Verification |
 | --- | --- | --- |
-| SIM-REQ-050 | Subscriber agents shall be able to hold exactly one representation token. | Initialization test. |
-| SIM-REQ-051 | Subscriber agents shall be able to delegate fractional or whole token shares when fractional delegation is enabled. | Delegation test. |
-| SIM-REQ-052 | Subscriber agents shall be able to vote in Authority formation, reauthorization, National Decision, and scenario-defined legislative decisions. | Voting event tests. |
+| SIM-REQ-050 | Subscriber agents shall hold exactly one representation token. | Initialization test. |
+| SIM-REQ-051 | Subscriber agents shall emit fractional or whole-token delegation events when fractional delegation is enabled. | Delegation test. |
+| SIM-REQ-052 | Subscriber agents shall emit vote events for Authority formation, reauthorization, National Decision, and scenario-defined legislative decisions when configured voting conditions are met. | Voting event tests. |
+| SIM-REQ-053 | Subscriber agents shall emit delegation creation as a `delegation_create` event with `source_subscriber_id`, `target_representative_id`, `token_share`, and `submitted_tick`. | Delegation event schema test. |
+| SIM-REQ-054 | Subscriber agents shall emit delegation revocation as a `delegation_revoke` event with `source_subscriber_id`, `delegation_id`, and `submitted_tick`. | Revocation event schema test. |
+| SIM-REQ-055 | Subscriber agents shall emit delegation transfer as paired revocation and creation events or as a `delegation_transfer` event with equivalent source, old target, new target, token share, and submitted tick fields. | Transfer event schema test. |
+| SIM-REQ-056 | Subscriber agents shall emit vote events with `voter_id`, `decision_id`, `vote_value`, `vote_weight_basis`, and `submitted_tick`. | Vote event schema test. |
+| SIM-REQ-057 | Subscriber agents shall update satisfaction only through configured satisfaction inputs and shall emit the resulting value as a state update event. | Satisfaction update test. |
 
 ### Representative Agent
 
@@ -119,6 +199,9 @@ Requirements:
 | SIM-REQ-060 | Representative agents shall report raw delegated token totals. | Delegation aggregation test. |
 | SIM-REQ-061 | Representative agents shall report weighted delegation totals. | Weighting test. |
 | SIM-REQ-062 | Representative agents shall be subject to raw and weighted delegation caps. | Cap enforcement test. |
+| SIM-REQ-063 | Representative agents shall emit aggregated vote events with `representative_id`, `decision_id`, `raw_token_total`, `weighted_token_total`, and `vote_value`. | Aggregated vote schema test. |
+| SIM-REQ-064 | Representative agents shall not include pending delegations in aggregated vote events. | Pending delegation exclusion test. |
+| SIM-REQ-065 | Representative agents shall expose coalition membership as input to cap evaluation when `coalition_id` is configured. | Coalition cap input test. |
 
 ### Authority Agent
 
@@ -138,6 +221,10 @@ Requirements:
 | SIM-REQ-070 | Authority agents shall not execute actions until the engine marks the Authority active. | Authority lifecycle test. |
 | SIM-REQ-071 | Authority agents shall submit proposed actions to scope validation before execution. | Scope validation test. |
 | SIM-REQ-072 | Authority agents shall expose lifecycle state for creation, activation, review, reauthorization, dissolution, merger, and separation. | Lifecycle state test. |
+| SIM-REQ-073 | Authority agents shall emit proposed action events with `authority_id`, `scope_id`, `requested_power`, `affected_territory`, `affected_population`, `resource_request`, and `submitted_tick`. | Authority action event schema test. |
+| SIM-REQ-074 | Authority agents shall receive an engine decision before changing lifecycle state. | Lifecycle transition test. |
+| SIM-REQ-075 | Authority agents shall emit emergency declaration events with `authority_id`, `qualifying_condition`, `affected_scope`, `declared_tick`, and requested emergency powers. | Emergency declaration schema test. |
+| SIM-REQ-076 | Authority agents shall emit review submission events with `authority_id`, `review_type`, `review_period`, and evidence payload. | Review event schema test. |
 
 ### Adversarial Faction Agent
 
@@ -159,6 +246,9 @@ Requirements:
 | SIM-REQ-080 | Adversarial faction agents shall be labeled as simulation abstractions. | Manifest review. |
 | SIM-REQ-081 | Adversarial faction agents shall not receive Charter powers unavailable to ordinary Subscribers, Representatives, or Authorities. | Scenario validation test. |
 | SIM-REQ-082 | Adversarial faction agents shall generate capture-attempt events for metrics. | Event log test. |
+| SIM-REQ-083 | Adversarial faction agents shall declare `target_metric`, `target_actor_id`, `strategy`, and `success_condition` in scenario configuration. | Scenario validation test. |
+| SIM-REQ-084 | Adversarial faction agents shall emit coordinated action events that identify every controlled or influenced actor used by the event. | Capture event schema test. |
+| SIM-REQ-085 | Adversarial faction agents shall report failed attempts as events rather than omitting them. | Capture metrics test. |
 
 ### Court Or Review Agent
 
@@ -175,9 +265,12 @@ Requirements:
 
 | ID | Requirement | Suggested Verification |
 | --- | --- | --- |
-| SIM-REQ-090 | Court or review agents shall support deterministic decision rules. | Deterministic review test. |
+| SIM-REQ-090 | Court or review agents shall apply deterministic decision rules. | Deterministic review test. |
 | SIM-REQ-091 | Court or review agents shall record review queue length by tick. | Metrics test. |
 | SIM-REQ-092 | Court or review agents shall not create new Authority powers. | Review output validation test. |
+| SIM-REQ-093 | Court or review agents shall accept review requests with `review_id`, `review_type`, `claimant_id`, `target_event_id`, `authority_id`, and `submitted_tick`. | Review request schema test. |
+| SIM-REQ-094 | Court or review agents shall emit review decisions with `review_id`, `decision`, `reason`, `affected_event_id`, and `decision_tick`. | Review decision schema test. |
+| SIM-REQ-095 | Court or review agents shall mark decisions that rely on simulation-only review criteria as simulation abstractions. | Manifest and decision log test. |
 
 ### Event Generator Or Environment Agent
 
@@ -199,6 +292,9 @@ Requirements:
 | SIM-REQ-100 | Event generator agents shall be labeled as simulation abstractions. | Manifest review. |
 | SIM-REQ-101 | Event generator agents shall emit events only from scenario configuration or seeded random generation. | Replay test. |
 | SIM-REQ-102 | Event generator agents shall identify affected function, territory, population, and severity where applicable. | Event schema test. |
+| SIM-REQ-103 | Event generator agents shall emit scheduled events at the configured tick. | Schedule test. |
+| SIM-REQ-104 | Event generator agents shall emit event termination records when configured event duration ends. | Event lifecycle test. |
+| SIM-REQ-105 | Event generator agents shall not directly modify Subscriber, Representative, or Authority state. | State transition audit test. |
 
 ## 5. Institutional Mechanics
 
@@ -215,7 +311,7 @@ Institutional mechanics are the core of the first useful engine. These requireme
 | SIM-REQ-112 | The engine shall allow Subscribers to transfer delegation to another Representative. | Transfer test. |
 | SIM-REQ-113 | The engine shall enforce a thirty-day activation delay for delegation changes. | Activation scheduling test. |
 | SIM-REQ-114 | The engine shall enforce no more than two delegation changes per Subscriber per twelve-month period. | Frequency limit test. |
-| SIM-REQ-115 | The engine shall support fractional delegation when enabled by scenario configuration. | Fractional delegation test. |
+| SIM-REQ-115 | The engine shall accept fractional delegation events when enabled by scenario configuration. | Fractional delegation test. |
 | SIM-REQ-116 | The engine shall compute delegation weight using `W = R^0.75` when the unresolved normalization assumptions are provided. | Weighting test. |
 | SIM-REQ-117 | The engine shall block or flag weighting calculations when required unresolved weighting assumptions are absent. | Gap validation test. |
 | SIM-REQ-118 | The engine shall enforce a one-percent raw delegation cap per Representative. | Raw cap test. |
@@ -225,6 +321,11 @@ Institutional mechanics are the core of the first useful engine. These requireme
 | SIM-REQ-122 | The engine shall trigger stabilization when more than five percent of representation tokens are scheduled to activate delegation shifts within a fourteen-day period. | Stabilization trigger test. |
 | SIM-REQ-123 | The engine shall uniformly extend affected delegation activation dates by thirty days when stabilization triggers. | Stabilization extension test. |
 | SIM-REQ-124 | The engine shall log stabilization extensions. | Event log test. |
+| SIM-REQ-125 | The engine shall convert an accepted `delegation_create` event into a pending Delegation record in the same tick. | Delegation state transition test. |
+| SIM-REQ-126 | The engine shall convert a pending Delegation record into active status at `activation_tick` unless blocked by cap, change-frequency, stabilization, or review rules. | Delegation activation test. |
+| SIM-REQ-127 | The engine shall record the exact blocking rule when a pending Delegation does not activate on `activation_tick`. | Blocked activation log test. |
+| SIM-REQ-128 | The engine shall set revoked Delegation records to inactive status and preserve their history. | Revocation state test. |
+| SIM-REQ-129 | The engine shall recalculate Representative raw and weighted totals after each delegation activation, revocation, transfer, or cap reassignment. | Delegation total recalculation test. |
 
 ### Authority Lifecycle
 
@@ -238,11 +339,58 @@ Institutional mechanics are the core of the first useful engine. These requireme
 | SIM-REQ-135 | The engine shall mark out-of-scope Authority actions void in simulation state. | Scope invalidation test. |
 | SIM-REQ-136 | The engine shall require full rechartering for Authority scope expansion. | Rechartering test. |
 | SIM-REQ-137 | The engine shall require full rechartering for Authority scope transfer. | Rechartering test. |
-| SIM-REQ-138 | The engine shall support Authority dissolution according to configured Authority Charter procedures. | Dissolution test. |
+| SIM-REQ-138 | The engine shall process Authority dissolution according to configured Authority Charter procedures. | Dissolution test. |
 | SIM-REQ-139 | The engine shall schedule structural and performance review every five years for each Authority. | Review scheduling test. |
 | SIM-REQ-140 | The engine shall require simple majority approval of Subscribers within Authority scope for renewal. | Renewal test. |
 | SIM-REQ-141 | The engine shall trigger mandatory reauthorization review after twelve consecutive months below forty-percent satisfaction. | Satisfaction trigger test. |
 | SIM-REQ-142 | The engine shall label satisfaction metric rules as simulation abstractions until the Charter defines measurement mechanics. | Manifest review. |
+| SIM-REQ-143 | The engine shall accept Authority formation requests with `proposed_authority_id`, `charter_id`, `coercive_status`, `approval_record_id`, and `submitted_tick`. | Formation event schema test. |
+| SIM-REQ-144 | The engine shall approve Authority formation only when the approval record meets the threshold selected by `coercive_status`. | Formation threshold test. |
+| SIM-REQ-145 | The engine shall reject Authority formation when the Authority Charter fails required-field validation. | Formation rejection test. |
+| SIM-REQ-146 | The engine shall emit an Authority activation event when a formation request passes charter and threshold validation. | Activation event test. |
+| SIM-REQ-147 | The engine shall emit an Authority formation rejection event when a formation request fails validation. | Rejection event test. |
+| SIM-REQ-148 | The engine shall store Authority lifecycle transitions as append-only events. | Lifecycle history test. |
+| SIM-REQ-149 | The engine shall produce a reauthorization decision event with approval percentage, electorate basis, result, and next review tick. | Reauthorization output test. |
+
+### Authority Lifecycle State Machine
+
+The first-pass engine uses a formal state machine for Authority lifecycle behavior. State names are simulation state labels for testing Charter mechanics; they do not create additional Charter powers.
+
+| State | Meaning |
+| --- | --- |
+| `proposed` | Authority formation has been requested but not approved. |
+| `rejected` | Authority formation failed validation or threshold approval. |
+| `chartered` | Authority formation passed threshold and charter validation but is not yet active. |
+| `active` | Authority may submit actions within sealed scope. |
+| `under_review` | Authority is undergoing scheduled, mandatory, court, or consolidation review. |
+| `reauthorization_required` | Authority requires renewal or reauthorization before normal continuation. |
+| `suspended` | Authority is temporarily unable to execute configured actions due to review, emergency review, or scenario-defined court order. |
+| `dissolving` | Authority has entered dissolution process under its Authority Charter or consolidation order. |
+| `dissolved` | Authority no longer executes actions. |
+| `merged` | Authority has been merged into another Authority through a valid process. |
+| `separated` | Authority has been split into successor Authorities through a valid process. |
+
+| ID | Requirement | Suggested Verification |
+| --- | --- | --- |
+| SIM-REQ-550 | The engine shall store Authority lifecycle state as one of the formal state machine values. | Lifecycle enum validation test. |
+| SIM-REQ-551 | The engine shall allow transition from `proposed` to `chartered` only after formation threshold and Authority Charter validation pass. | Lifecycle transition test. |
+| SIM-REQ-552 | The engine shall allow transition from `proposed` to `rejected` when formation threshold or Authority Charter validation fails. | Lifecycle transition test. |
+| SIM-REQ-553 | The engine shall allow transition from `chartered` to `active` only through an Authority activation event. | Activation transition test. |
+| SIM-REQ-554 | The engine shall allow transition from `active` to `under_review` when a scheduled review, mandatory review, court review, or consolidation review event is accepted. | Review transition test. |
+| SIM-REQ-555 | The engine shall allow transition from `under_review` to `active` when review passes without requiring reauthorization, suspension, dissolution, merger, or separation. | Review outcome test. |
+| SIM-REQ-556 | The engine shall allow transition from `under_review` to `reauthorization_required` when renewal or mandatory reauthorization is required. | Review outcome test. |
+| SIM-REQ-557 | The engine shall allow transition from `reauthorization_required` to `active` only when a valid reauthorization Approval Record passes. | Reauthorization transition test. |
+| SIM-REQ-558 | The engine shall allow transition from `reauthorization_required` to `dissolving` when reauthorization fails and configured dissolution procedures require dissolution. | Reauthorization failure test. |
+| SIM-REQ-559 | The engine shall allow transition from `active` or `under_review` to `suspended` only through a review or court decision event. | Suspension transition test. |
+| SIM-REQ-560 | The engine shall allow transition from `suspended` to `active` only through a review or court decision event. | Suspension release test. |
+| SIM-REQ-561 | The engine shall allow transition to `dissolving` only from `active`, `under_review`, `reauthorization_required`, or `suspended`. | Dissolution transition test. |
+| SIM-REQ-562 | The engine shall allow transition from `dissolving` to `dissolved` only after configured dissolution procedures complete. | Dissolution completion test. |
+| SIM-REQ-563 | The engine shall allow transition from `active`, `under_review`, or `dissolving` to `merged` only through a valid merger event. | Merger transition test. |
+| SIM-REQ-564 | The engine shall allow transition from `active`, `under_review`, or `dissolving` to `separated` only through a valid separation event. | Separation transition test. |
+| SIM-REQ-565 | The engine shall reject lifecycle transitions not listed in this state machine unless a future requirement explicitly adds them. | Invalid transition test. |
+| SIM-REQ-566 | Each lifecycle transition event shall include `authority_id`, `from_state`, `to_state`, `trigger_event_id`, `decision_id`, and `transition_tick`. | Lifecycle event schema test. |
+| SIM-REQ-567 | The engine shall prevent Authorities in `proposed`, `rejected`, `chartered`, `suspended`, `dissolving`, `dissolved`, `merged`, or `separated` states from executing ordinary Authority actions. | State action gating test. |
+| SIM-REQ-568 | The engine shall allow Authorities in `under_review` to execute ordinary actions only when the review decision or scenario configuration explicitly permits continued operation. | Review action gating test. |
 
 ### Emergency Mechanics
 
@@ -254,9 +402,15 @@ Institutional mechanics are the core of the first useful engine. These requireme
 | SIM-REQ-153 | The engine shall require National Decision approval for extension beyond one year. | Long extension test. |
 | SIM-REQ-154 | The engine shall require emergency measures to be publicly posted within seven days. | Deadline test. |
 | SIM-REQ-155 | The engine shall expire emergency powers when the emergency ends. | Expiration test. |
-| SIM-REQ-156 | The engine shall support provisional emergency measures for up to seventy-two hours. | Provisional activation test. |
+| SIM-REQ-156 | The engine shall process provisional emergency measures for no more than seventy-two hours. | Provisional activation test. |
 | SIM-REQ-157 | The engine shall require immediate ECO and Charter Court notification for provisional measures. | Notification event test. |
 | SIM-REQ-158 | The engine shall subject emergency actions to configured Charter Court review for Articles XVI and XVII compliance. | Review scenario test. |
+| SIM-REQ-159 | The engine shall reject emergency declarations whose `qualifying_condition` is not one of the Charter-recognized emergency categories. | Invalid emergency test. |
+| SIM-REQ-160 | The engine shall store emergency declarations with `emergency_id`, `lead_authority_id`, `qualifying_condition`, `start_tick`, `scheduled_expiry_tick`, `affected_authority_ids`, and `publication_due_tick`. | Emergency record schema test. |
+| SIM-REQ-161 | The engine shall emit an emergency expiry event at `scheduled_expiry_tick` unless a valid extension event exists. | Emergency expiry test. |
+| SIM-REQ-162 | The engine shall reject an emergency extension event that lacks required affected-Authority approvals. | Extension rejection test. |
+| SIM-REQ-163 | The engine shall record whether emergency publication occurred before `publication_due_tick`. | Publication deadline test. |
+| SIM-REQ-164 | The engine shall flag late emergency publication as a reviewable violation event. | Late publication test. |
 
 ### Conflict, Consolidation, And Review
 
@@ -270,9 +424,42 @@ Institutional mechanics are the core of the first useful engine. These requireme
 | SIM-REQ-175 | The engine shall apply territorial fallback only to physical operations. | Territorial fallback test. |
 | SIM-REQ-176 | The engine shall schedule a consolidation audit every ten years. | Audit scheduling test. |
 | SIM-REQ-177 | The engine shall calculate Authority sprawl against the one-Authority-per-fifty-thousand-Subscribers governance credit limit. | Sprawl metric test. |
-| SIM-REQ-178 | The engine shall support National Decision override of the governance credit limit. | Override test. |
-| SIM-REQ-179 | The engine shall support Consolidation Conflict Authority decisions for configured consolidation disputes. | CCA scenario test. |
+| SIM-REQ-178 | The engine shall process National Decision override events for the governance credit limit. | Override test. |
+| SIM-REQ-179 | The engine shall process Consolidation Conflict Authority decision events for configured consolidation disputes. | CCA scenario test. |
 | SIM-REQ-180 | The engine shall prevent CCA decisions from modifying Charter text, Legislative Acts, funding levels, or expanding Authority scope. | CCA validation test. |
+| SIM-REQ-181 | The engine shall store each scope conflict with `conflict_id`, `authority_ids`, `scope_ids`, `conflict_basis`, `detected_tick`, and `resolution_status`. | Conflict record schema test. |
+| SIM-REQ-182 | The engine shall emit a Coordination Council selection event with seed-derived selection provenance. | Council selection replay test. |
+| SIM-REQ-183 | The engine shall emit a conflict resolution event with applied rule, winning authority or act if any, expiry tick if temporary, and unresolved status if no rule resolves it. | Conflict resolution output test. |
+| SIM-REQ-184 | The engine shall store each consolidation audit with `audit_id`, `scheduled_tick`, `authority_count`, `subscriber_count`, `governance_credit_limit`, `sprawl_result`, and `recommended_actions`. | Audit record schema test. |
+| SIM-REQ-185 | The engine shall emit CCA order events with `order_type`, `authority_ids`, `permitted_action_check`, and appeal window if configured. | CCA order event test. |
+| SIM-REQ-186 | The engine shall reject CCA order events whose `order_type` is outside the Charter-derived permitted order list. | CCA invalid order test. |
+
+### First-Pass Scope Conflict Detection Mechanics
+
+First-pass conflict detection is structural. It compares machine-readable scope and action records; it does not interpret natural-language legal text.
+
+| ID | Requirement | Suggested Verification |
+| --- | --- | --- |
+| SIM-REQ-570 | The engine shall evaluate scope conflict whenever an Authority action event is accepted. | Conflict trigger test. |
+| SIM-REQ-571 | The engine shall evaluate scope conflict whenever a new Authority becomes active. | Activation conflict test. |
+| SIM-REQ-572 | The engine shall evaluate scope conflict whenever an Authority scope changes through valid rechartering, merger, separation, or consolidation order. | Scope change conflict test. |
+| SIM-REQ-573 | The engine shall compare scope conflicts using `function`, `territory`, `population_affected`, `permitted_powers`, `prohibited_powers`, `resource_authority`, and `enforcement_authority`. | Conflict comparison test. |
+| SIM-REQ-574 | The engine shall detect a functional conflict when two active Authorities claim incompatible permitted powers over the same configured function. | Functional conflict test. |
+| SIM-REQ-575 | The engine shall detect a territorial conflict when two active Authorities issue incompatible physical-operation directives over overlapping territory. | Territorial conflict test. |
+| SIM-REQ-576 | The engine shall detect a population conflict when two active Authorities issue incompatible directives affecting overlapping configured populations. | Population conflict test. |
+| SIM-REQ-577 | The engine shall detect a resource conflict when two active Authorities claim exclusive use of the same configured resource. | Resource conflict test. |
+| SIM-REQ-578 | The engine shall detect an enforcement conflict when an Authority action uses enforcement authority not present in that Authority scope. | Enforcement conflict test. |
+| SIM-REQ-579 | The engine shall detect a prohibited-power conflict when an Authority action requests a power listed in that Authority scope `prohibited_powers`. | Prohibited power test. |
+| SIM-REQ-580 | The engine shall classify each detected scope conflict as `functional`, `territorial`, `population`, `resource`, `enforcement`, `prohibited_power`, or `mixed`. | Conflict classification test. |
+| SIM-REQ-581 | The engine shall mark a conflict as `mixed` when more than one conflict classification applies. | Mixed conflict test. |
+| SIM-REQ-582 | The engine shall not mark overlap alone as conflict unless configured incompatibility, exclusivity, prohibited power, or incompatible directive criteria are present. | Benign overlap test. |
+| SIM-REQ-583 | The engine shall represent territory overlap using scenario-defined territory identifiers or geometry abstraction. | Territory overlap test. |
+| SIM-REQ-584 | The engine shall represent population overlap using scenario-defined population group identifiers or membership sets. | Population overlap test. |
+| SIM-REQ-585 | The engine shall represent incompatible directives using scenario-defined directive types and incompatibility matrix. | Incompatibility matrix test. |
+| SIM-REQ-586 | The engine shall label the incompatibility matrix as a simulation abstraction unless derived directly from a Charter rule. | Manifest review. |
+| SIM-REQ-587 | The engine shall emit exactly one scope conflict event for each unique conflict key per tick. | Duplicate conflict test. |
+| SIM-REQ-588 | The unique conflict key shall include sorted Authority IDs, conflict classification, affected scope identifiers, and tick. | Conflict key test. |
+| SIM-REQ-589 | The engine shall preserve unresolved scope conflicts until a resolution event, expiry event, or scenario termination. | Conflict persistence test. |
 
 ## 6. Machine-Readable Scope Model
 
@@ -306,9 +493,9 @@ Suggested minimum scope fields:
 | `permitted_powers` | Yes | Enumerated powers. |
 | `prohibited_powers` | No | Explicit exclusions for tests. |
 | `resource_authority` | No | Budget, assets, or operational resources. |
-| `enforcement_authority` | No | Must align with coercive classification. |
+| `enforcement_authority` | No | Aligns with coercive classification. |
 | `review_interval` | No | Defaults to five years. |
-| `emergency_powers` | No | Must be Article V constrained. |
+| `emergency_powers` | No | Constrained by Article V mechanics. |
 | `authority_references` | No | Parent, peer, compact, overlap, or dependency references. |
 
 ## 7. Simulation Time Model
@@ -325,17 +512,17 @@ The Charter uses days, months, years, review intervals, activation delays, emerg
 | SIM-REQ-211 | The engine shall map each tick to a configured calendar duration. | Calendar mapping test. |
 | SIM-REQ-212 | The first-pass default tick duration shall be one day. | Default config test. |
 | SIM-REQ-213 | The engine shall schedule future events by tick and calendar date. | Event scheduling test. |
-| SIM-REQ-214 | The engine shall support review windows. | Review window test. |
-| SIM-REQ-215 | The engine shall support delegation activation delays. | Delegation schedule test. |
-| SIM-REQ-216 | The engine shall support emergency deadlines. | Emergency deadline test. |
-| SIM-REQ-217 | The engine shall support reporting periods for metrics. | Metrics period test. |
+| SIM-REQ-214 | The engine shall schedule review windows with start tick, end tick, and review type. | Review window test. |
+| SIM-REQ-215 | The engine shall schedule delegation activation delays with submitted tick and activation tick. | Delegation schedule test. |
+| SIM-REQ-216 | The engine shall schedule emergency deadlines with deadline type and due tick. | Emergency deadline test. |
+| SIM-REQ-217 | The engine shall calculate reporting periods for metrics from configured period boundaries. | Metrics period test. |
 | SIM-REQ-218 | The engine shall preserve event ordering within a tick according to a deterministic ordering rule. | Replay ordering test. |
 
 ## 8. Scenario Configuration
 
 ### Rationale
 
-Scenario files should define initial conditions and behavior parameters without changing engine code. YAML or JSON are acceptable because both can be versioned and diffed.
+Scenario files define initial conditions and behavior parameters without changing engine code. YAML or JSON are acceptable because both can be versioned and diffed.
 
 ### Requirements
 
@@ -354,6 +541,12 @@ Scenario files should define initial conditions and behavior parameters without 
 | SIM-REQ-240 | Scenario configuration shall include output settings. | Output test. |
 | SIM-REQ-241 | Scenario configuration shall include a scenario schema version. | Manifest validation test. |
 | SIM-REQ-242 | Scenario configuration shall identify any simulation abstractions used by the scenario. | Manifest validation test. |
+| SIM-REQ-243 | Scenario configuration shall include `scenario_id`, `scenario_version`, `charter_derivative_path`, `random_seed`, `duration`, `tick_duration`, and `output_path`. | Scenario schema validation test. |
+| SIM-REQ-244 | Scenario configuration shall include agent configuration sections for every enabled agent type. | Scenario schema validation test. |
+| SIM-REQ-245 | Scenario configuration shall fail validation when an enabled agent type lacks required state or behavior parameters. | Invalid scenario test. |
+| SIM-REQ-246 | Scenario configuration shall include initial state records or generation rules for Subscribers, Representatives, Authorities, and Delegations. | Initialization validation test. |
+| SIM-REQ-247 | Scenario configuration shall declare any assumptions used to resolve `SIM-GAP-*` items. | Gap assumption validation test. |
+| SIM-REQ-248 | Scenario configuration shall fail validation when a scenario requires an unresolved `SIM-GAP-*` assumption that is not declared. | Invalid scenario test. |
 
 ## 9. Engine Determinism And Reproducibility
 
@@ -374,6 +567,11 @@ Stress tests are only useful if outcomes can be reproduced, audited, and traced 
 | SIM-REQ-256 | The engine shall export an event log. | Output test. |
 | SIM-REQ-257 | The engine shall report validation errors before running invalid scenarios. | Invalid scenario test. |
 | SIM-REQ-258 | The engine shall not use unseeded randomness. | Static and replay tests. |
+| SIM-REQ-259 | The engine shall include a hash of the scenario configuration in the scenario manifest. | Manifest test. |
+| SIM-REQ-260 | The engine shall include a hash of `charter_sim.yaml` in the scenario manifest. | Manifest test. |
+| SIM-REQ-261 | The engine shall include engine package version and Mesa adapter version in run provenance when available. | Manifest test. |
+| SIM-REQ-262 | The engine shall include random seed, tick duration, start tick, end tick, and event ordering policy in run provenance. | Manifest test. |
+| SIM-REQ-263 | The engine shall fail deterministic replay if final state hash differs from the recorded final state hash. | Replay failure test. |
 
 ## 10. Metrics And Outputs
 
@@ -403,6 +601,50 @@ The first pass needs metrics that expose mechanical stress points: concentration
 | SIM-REQ-285 | The engine shall measure rights violation events as simulation abstractions. | Metrics and manifest test. |
 | SIM-REQ-286 | The engine shall measure scope violation events as simulation abstractions unless directly determined by scope rules. | Metrics and manifest test. |
 
+### Metric Formula Requirements
+
+Metric formulas are first-pass engineering definitions for simulation outputs. They do not define Charter legal standards.
+
+| Metric | First-Pass Formula |
+| --- | --- |
+| Raw power concentration | `max_representative_raw_delegation_share = max(raw_delegation_total) / total_active_representation_tokens` |
+| Weighted power concentration | `max_representative_weighted_share = max(weighted_delegation_total) / total_weighted_delegation` |
+| Delegation churn | `delegation_churn = count(delegation_create, delegation_revoke, delegation_transfer events in window) / active_subscriber_count` |
+| Authority count | `authority_count = count(Authority records where lifecycle_status in active_counted_states)` |
+| Authority sprawl | `authority_sprawl_ratio = authority_count / floor(active_subscriber_count / 50000)` when denominator is greater than zero |
+| Scope conflict count | `scope_conflict_count = count(scope_conflict events in window)` |
+| Emergency action count | `emergency_action_count = count(emergency_declaration, emergency_extension, provisional_emergency events in window)` |
+| Emergency action duration | `emergency_duration_ticks = emergency_end_tick - emergency_start_tick` |
+| Court or review load | `review_load = count(review_request events pending or processed in window)` |
+| Satisfaction by group | `group_satisfaction_mean = sum(satisfaction_value for group members) / group_member_count` |
+| Capture attempts | `capture_attempt_count = count(capture_attempt events in window)` |
+| Capture success rate | `capture_success_rate = successful_capture_attempt_count / capture_attempt_count` when attempts are greater than zero |
+| Reauthorization outcomes | `reauthorization_pass_rate = passed_reauthorization_count / total_reauthorization_decisions` when decisions are greater than zero |
+| Dissolution outcomes | `dissolution_count = count(Authority lifecycle transitions to dissolved in window)` |
+| Time-to-response after crisis | `time_to_response_ticks = first_valid_response_tick - crisis_start_tick` |
+| Rights violation events | `rights_violation_count = count(rights_violation events in window)` |
+| Scope violation events | `scope_violation_count = count(scope_violation or prohibited_power conflict events in window)` |
+
+| ID | Requirement | Suggested Verification |
+| --- | --- | --- |
+| SIM-REQ-590 | The engine shall calculate raw power concentration using the first-pass raw power concentration formula. | Metric formula test. |
+| SIM-REQ-591 | The engine shall calculate weighted power concentration using the first-pass weighted power concentration formula when weighting is configured. | Metric formula test. |
+| SIM-REQ-592 | The engine shall return `not_applicable` for weighted power concentration when weighting assumptions are unresolved. | Metric gap test. |
+| SIM-REQ-593 | The engine shall calculate delegation churn using the first-pass delegation churn formula. | Metric formula test. |
+| SIM-REQ-594 | The engine shall calculate Authority count using configured active-counted lifecycle states. | Metric formula test. |
+| SIM-REQ-595 | The first-pass active-counted lifecycle states shall include `active`, `under_review`, `reauthorization_required`, and `suspended`. | Metric configuration test. |
+| SIM-REQ-596 | The engine shall calculate Authority sprawl using the first-pass Authority sprawl formula. | Metric formula test. |
+| SIM-REQ-597 | The engine shall return `not_applicable` for Authority sprawl when active Subscriber count is below fifty-thousand unless scenario configuration defines a small-population scaling abstraction. | Metric edge case test. |
+| SIM-REQ-598 | The engine shall calculate scope conflict count using unique scope conflict events. | Metric formula test. |
+| SIM-REQ-599 | The engine shall calculate emergency duration from emergency start and end ticks. | Metric formula test. |
+| SIM-REQ-600 | The engine shall calculate court or review load from review queue and review decision events. | Metric formula test. |
+| SIM-REQ-601 | The engine shall calculate satisfaction by group only for groups declared in scenario configuration. | Metric formula test. |
+| SIM-REQ-602 | The engine shall calculate capture success rate using scenario-defined success criteria. | Metric formula test. |
+| SIM-REQ-603 | The engine shall return `not_applicable` for capture success rate when no capture attempts occur. | Metric edge case test. |
+| SIM-REQ-604 | The engine shall calculate time-to-response only when a crisis event and valid response event are linked by event references. | Metric formula test. |
+| SIM-REQ-605 | Each metric output shall include `metric_id`, `formula_id`, `window_start_tick`, `window_end_tick`, `value`, `unit`, and `not_applicable_reason` when applicable. | Metric output schema test. |
+| SIM-REQ-606 | Each metric formula shall be listed in the scenario manifest or engine metadata. | Manifest test. |
+
 ### Required Output Artifacts
 
 | ID | Requirement | Suggested Verification |
@@ -414,12 +656,17 @@ The first pass needs metrics that expose mechanical stress points: concentration
 | SIM-REQ-294 | Each run shall output scenario manifest. | Output existence test. |
 | SIM-REQ-295 | Each run shall output validation and errors report. | Output existence test. |
 | SIM-REQ-296 | Output artifacts shall include enough provenance to reproduce the run. | Replay provenance test. |
+| SIM-REQ-297 | The event log shall contain one row or object per accepted, rejected, generated, or derived event. | Event log schema test. |
+| SIM-REQ-298 | The final state artifact shall include Subscribers, Representatives, Delegations, Authorities, active emergencies, pending reviews, and unresolved conflicts. | Final state schema test. |
+| SIM-REQ-299 | The metrics summary shall include metric name, value, unit, calculation window, and calculation source. | Metrics summary schema test. |
+| SIM-REQ-300 | The per-tick time series shall include tick, calendar date, metric name, and value. | Time series schema test. |
+| SIM-REQ-301 | The validation and errors report shall distinguish blocking errors, non-blocking warnings, and simulation abstraction notices. | Validation report test. |
 
 ## 11. First-Pass Scenario Suite
 
 ### Rationale
 
-The starter suite should exercise high-value Charter mechanics without requiring high-fidelity social modeling.
+The starter suite exercises high-value Charter mechanics without requiring high-fidelity social modeling.
 
 ### Requirements
 
@@ -464,7 +711,7 @@ Explicit exclusions prevent the first implementation from absorbing speculative 
 
 ### Rationale
 
-Mesa should provide the agent-based runtime, not the constitutional interpreter. Keeping the boundary narrow makes the engine testable and allows future replacement or alternate runtimes.
+Mesa provides the agent-based runtime, not the constitutional interpreter. Keeping the boundary narrow makes the engine testable and allows future replacement or alternate runtimes.
 
 ### Requirements
 
@@ -475,13 +722,13 @@ Mesa should provide the agent-based runtime, not the constitutional interpreter.
 | SIM-REQ-352 | The Mesa adapter shall coordinate model step order without duplicating Charter rule logic. | Adapter code review and unit test. |
 | SIM-REQ-353 | Mesa agents shall call engine services for Charter-constrained decisions. | Mock engine interaction test. |
 | SIM-REQ-354 | The Mesa adapter shall collect metrics from engine state and agent state. | Metrics integration test. |
-| SIM-REQ-355 | The Mesa adapter shall support seeded random selection for lot-selected bodies and stochastic scenario behavior. | Replay test. |
+| SIM-REQ-355 | The Mesa adapter shall use seeded random selection for lot-selected bodies and stochastic scenario behavior. | Replay test. |
 
 ## 14. Initial Folder Structure
 
 ### Rationale
 
-The folder structure should separate documentation, rules configuration, pure engine code, Mesa integration, and tests.
+The folder structure separates documentation, rules configuration, pure engine code, Mesa integration, and tests.
 
 ### Requirements
 
@@ -550,7 +797,7 @@ The user-specified workflow requires testable design requirements, code that com
 
 ## 17. Open Questions Blocking Or Constraining Implementation
 
-These questions are known Charter ambiguities or first-pass design blockers. The engine may support configurable assumptions for scenario testing, but those assumptions must be labeled as simulation abstractions unless the Charter is amended or authoritative guidance is added.
+These questions are known Charter ambiguities or first-pass design blockers. The engine may accept configurable assumptions for scenario testing, but those assumptions shall be labeled as simulation abstractions unless the Charter is amended or authoritative guidance is added.
 
 | ID | Open Question | Impact |
 | --- | --- | --- |
