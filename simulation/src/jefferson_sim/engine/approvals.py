@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from .records import ApprovalRecord, ThresholdResult
+from .records import (
+    ApprovalRecord,
+    ThresholdResult,
+    threshold_result_from_ratio,
+)
 
 
 COERCIVE_AUTHORITY_THRESHOLD = 0.75
@@ -19,4 +23,5 @@ def approval_passes_threshold(record: ApprovalRecord, threshold: float | None = 
 
 
 def evaluate_approval_record(record: ApprovalRecord, threshold: float | None = None) -> ThresholdResult:
-    return ThresholdResult.PASS if approval_passes_threshold(record, threshold) else ThresholdResult.FAIL
+    required = record.threshold_required if threshold is None else threshold
+    return threshold_result_from_ratio(record.approval_ratio, required)

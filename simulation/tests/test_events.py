@@ -3,7 +3,9 @@ from jefferson_sim.engine import (
     EventProcessor,
     EventStatus,
     NO_OP_RULE_ID,
+    RepresentativeRecord,
     SimulationState,
+    SubscriberRecord,
 )
 
 
@@ -98,6 +100,38 @@ def test_event_processor_records_no_op_rule_decisions() -> None:
     assert decision.rule_id == NO_OP_RULE_ID
     assert decision.event_id == "event-000001"
     assert decision.result == EventStatus.NO_OP.value
+    assert len(decision.input_state_hash) == 64
+    assert len(decision.output_state_hash) == 64
+
+
+def test_state_changing_rule_decision_records_pre_and_post_state_hashes() -> None:
+    state = SimulationState()
+    state.add_subscriber(SubscriberRecord("sub-1", "token-1"))
+    state.add_representative(RepresentativeRecord("rep-1", "sub-1"))
+    processor = EventProcessor(state)
+
+    processor.submit_events(
+        0,
+        [
+            EventInput(
+                event_type="delegation_create",
+                submitted_tick=0,
+                effective_tick=0,
+                actor_id="sub-1",
+                payload={
+                    "source_subscriber_id": "sub-1",
+                    "target_representative_id": "rep-1",
+                    "token_share": 1.0,
+                },
+            )
+        ],
+    )
+
+    decision = processor.state.rule_decisions[0]
+    assert decision.result == EventStatus.ACCEPTED.value
+    assert len(decision.input_state_hash) == 64
+    assert len(decision.output_state_hash) == 64
+    assert decision.input_state_hash != decision.output_state_hash
 
 
 def test_event_processor_processes_future_effective_events_on_later_tick() -> None:

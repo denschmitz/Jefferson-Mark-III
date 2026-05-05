@@ -23,6 +23,7 @@ from .records import (
     ThresholdResult,
     to_primitive,
 )
+from .rules import enabled_rule_manifest
 from .state import SimulationState
 
 
@@ -205,6 +206,7 @@ def _output_context(
         scenario_hash=_hash_mapping(data),
         charter_derivative_hash=_hash_file_if_present(scenario.path.parent, charter_derivative_path),
         event_ordering_policy=processor.event_ordering_policy(),
+        enabled_rules=enabled_rule_manifest(list(data.get("simulation_abstractions", []))),
     )
 
 

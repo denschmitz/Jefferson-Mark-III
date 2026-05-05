@@ -11,6 +11,7 @@ from jefferson_sim.engine import (
     SubscriberRecord,
     ValidationReport,
     ValidationSeverity,
+    enabled_rule_manifest,
     raw_power_concentration,
     write_run_outputs,
 )
@@ -93,6 +94,34 @@ def test_manifest_contains_replay_provenance() -> None:
     assert len(manifest["final_state_hash"]) == 64
 
 
+def test_manifest_lists_enabled_rules() -> None:
+    processor = build_output_state()
+    context = RunOutputContext(
+        scenario_id="phase5-output-test",
+        scenario_version="0.1.0",
+        random_seed=123,
+        start_tick=0,
+        end_tick=1,
+        enabled_rules=enabled_rule_manifest(["satisfaction_metric"]),
+    )
+
+    paths = write_run_outputs(OUTPUT_DIR, processor.state, ValidationReport(), context)
+    manifest = json.loads(paths.manifest.read_text(encoding="utf-8"))
+
+    charter_rule_ids = {
+        rule["rule_id"] for rule in manifest["enabled_rules"]["charter_derived"]
+    }
+    abstraction_labels = {
+        rule["abstraction_label"]
+        for rule in manifest["enabled_rules"]["simulation_abstractions"]
+    }
+
+    assert "SIM-RULE-AUTHORITY-FORMATION" in charter_rule_ids
+    assert "SIM-RULE-DELEGATION-CREATE" in charter_rule_ids
+    assert "event_noop" in abstraction_labels
+    assert "satisfaction_metric" in abstraction_labels
+
+
 def test_event_and_decision_logs_are_json_lines() -> None:
     processor = build_output_state()
     paths = write_run_outputs(
@@ -119,6 +148,8 @@ def test_event_and_decision_logs_are_json_lines() -> None:
 
     assert event_rows[0]["event_id"] == "event-000001"
     assert decision_rows[0]["decision_id"] == "decision-000001"
+    assert len(decision_rows[0]["input_state_hash"]) == 64
+    assert len(decision_rows[0]["output_state_hash"]) == 64
 
 
 def test_final_state_includes_core_and_placeholder_sections() -> None:

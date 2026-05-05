@@ -54,6 +54,7 @@ class RunOutputContext:
     scenario_hash: str | None = None
     charter_derivative_hash: str | None = None
     event_ordering_policy: dict[str, int] | None = None
+    enabled_rules: dict[str, list[dict[str, Any]]] | None = None
     extra_provenance: dict[str, Any] | None = None
 
     def to_manifest_dict(
@@ -72,6 +73,8 @@ class RunOutputContext:
             "scenario_hash": self.scenario_hash,
             "charter_derivative_hash": self.charter_derivative_hash,
             "event_ordering_policy": self.event_ordering_policy or {},
+            "enabled_rules": self.enabled_rules
+            or {"charter_derived": [], "simulation_abstractions": []},
             "final_state_hash": state.state_hash(),
             "output_artifacts": {
                 key: Path(path).name for key, path in paths.to_dict().items()

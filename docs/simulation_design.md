@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document describes the first-pass implementation design for the Jefferson Mark III simulation engine. It does not replace `docs/simulation_requirements.md`; it organizes a practical implementation that can satisfy those requirements with conservative scope.
+This document describes the first-pass implementation design for the Jefferson Mark III simulation engine. It does not replace `docs/simulation/requirements/index.md`; it organizes a practical implementation that can satisfy those requirements with conservative scope.
 
 The design goal is a deterministic Charter mechanics engine with a thin Mesa adapter. Charter rule evaluation stays independent from Mesa so it can be unit tested directly.
 

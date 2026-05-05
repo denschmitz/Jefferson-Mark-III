@@ -1,9 +1,14 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from jefferson_sim.engine import (
     AuthorityLifecycleState,
     DelegationStatus,
+    StateValidationError,
+    load_scenario,
+    run_scenario_config,
     run_scenario_file,
 )
 
@@ -73,4 +78,90 @@ def test_minimal_scenario_outputs_are_written() -> None:
 
     assert manifest["scenario_id"] == "authority_creation"
     assert manifest["final_state_hash"] == result.final_state_hash
+    assert manifest["enabled_rules"]["charter_derived"]
+    assert manifest["enabled_rules"]["simulation_abstractions"]
     assert final_state["authorities"]["authority-1"]["lifecycle_status"] == "active"
+
+
+def test_initial_state_recalculates_representative_totals_from_active_delegations() -> None:
+    scenario_path = SCENARIO_DIR / "basic_delegation_stability.yaml"
+    scenario = load_scenario(scenario_path)
+    data = dict(scenario.data)
+    data["duration"] = 0
+    data["event_schedule"] = []
+    data["initial_state"] = {
+        "subscribers": [
+            {"subscriber_id": "sub-1", "token_id": "token-1"},
+            {"subscriber_id": "sub-2", "token_id": "token-2"},
+        ],
+        "representatives": [
+            {
+                "representative_id": "rep-1",
+                "subscriber_id": "sub-1",
+                "raw_delegation_total": 99.0,
+            }
+        ],
+        "delegations": [
+            {
+                "delegation_id": "delegation-1",
+                "source_subscriber_id": "sub-2",
+                "target_representative_id": "rep-1",
+                "token_share": 1.0,
+                "submitted_tick": 0,
+                "activation_tick": 0,
+                "status": "active",
+            }
+        ],
+    }
+
+    result = run_scenario_config(
+        type(scenario)(path=scenario.path, data=data, validation_report=scenario.validation_report),
+        write_outputs=False,
+    )
+
+    assert result.processor.state.representatives["rep-1"].raw_delegation_total == 1.0
+
+
+def test_initial_state_rejects_active_delegation_share_total_above_one() -> None:
+    scenario_path = SCENARIO_DIR / "basic_delegation_stability.yaml"
+    scenario = load_scenario(scenario_path)
+    data = dict(scenario.data)
+    data["duration"] = 0
+    data["event_schedule"] = []
+    data["initial_state"] = {
+        "subscribers": [{"subscriber_id": "sub-1", "token_id": "token-1"}],
+        "representatives": [
+            {"representative_id": "rep-1", "subscriber_id": "sub-1"},
+            {"representative_id": "rep-2", "subscriber_id": "sub-1"},
+        ],
+        "delegations": [
+            {
+                "delegation_id": "delegation-1",
+                "source_subscriber_id": "sub-1",
+                "target_representative_id": "rep-1",
+                "token_share": 0.75,
+                "submitted_tick": 0,
+                "activation_tick": 0,
+                "status": "active",
+            },
+            {
+                "delegation_id": "delegation-2",
+                "source_subscriber_id": "sub-1",
+                "target_representative_id": "rep-2",
+                "token_share": 0.5,
+                "submitted_tick": 0,
+                "activation_tick": 0,
+                "status": "active",
+            },
+        ],
+    }
+
+    with pytest.raises(StateValidationError):
+        run_scenario_config(
+            type(scenario)(
+                path=scenario.path,
+                data=data,
+                validation_report=scenario.validation_report,
+            ),
+            write_outputs=False,
+        )

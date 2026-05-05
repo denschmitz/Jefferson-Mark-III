@@ -32,6 +32,20 @@ class ThresholdResult(StrEnum):
     NOT_APPLICABLE = "not_applicable"
 
 
+SUPPORTED_APPROVAL_DECISION_TYPES = frozenset(
+    {
+        "authority_formation",
+        "authority_renewal",
+        "national_decision",
+        "charter_amendment",
+        "emergency_extension",
+        "governance_credit_override",
+    }
+)
+
+FLOAT_TOLERANCE = 1e-9
+
+
 class AuthorityLifecycleState(StrEnum):
     PROPOSED = "proposed"
     REJECTED = "rejected"
@@ -54,6 +68,18 @@ def _require_text(value: str, field_name: str) -> None:
 def _require_non_negative(value: int | float, field_name: str) -> None:
     if value < 0:
         raise RecordValidationError(f"{field_name} must be non-negative")
+
+
+def approval_ratio_from_counts(approval_count: int, eligible_count: int) -> float:
+    if eligible_count == 0:
+        return 0.0
+    return approval_count / eligible_count
+
+
+def threshold_result_from_ratio(
+    approval_ratio: float, threshold_required: float
+) -> ThresholdResult:
+    return ThresholdResult.PASS if approval_ratio >= threshold_required else ThresholdResult.FAIL
 
 
 def to_primitive(value: Any) -> Any:
@@ -221,6 +247,8 @@ class ApprovalRecord:
         _require_text(self.decision_type, "decision_type")
         _require_text(self.subject_id, "subject_id")
         _require_text(self.electorate_basis, "electorate_basis")
+        if self.decision_type not in SUPPORTED_APPROVAL_DECISION_TYPES:
+            raise RecordValidationError(f"unsupported approval decision_type: {self.decision_type}")
         for field_name in (
             "eligible_count",
             "approval_count",
@@ -235,6 +263,18 @@ class ApprovalRecord:
             raise RecordValidationError("approval_ratio must be between 0 and 1")
         if not 0 <= self.threshold_required <= 1:
             raise RecordValidationError("threshold_required must be between 0 and 1")
+        expected_ratio = approval_ratio_from_counts(self.approval_count, self.eligible_count)
+        if abs(self.approval_ratio - expected_ratio) > FLOAT_TOLERANCE:
+            raise RecordValidationError(
+                "approval_ratio must equal approval_count / eligible_count"
+            )
+        expected_result = threshold_result_from_ratio(
+            self.approval_ratio, self.threshold_required
+        )
+        if self.threshold_result != expected_result:
+            raise RecordValidationError(
+                "threshold_result must match approval_ratio and threshold_required"
+            )
 
     def to_dict(self) -> dict[str, Any]:
         return to_primitive(self)
@@ -269,6 +309,7 @@ class RuleDecision:
     event_id: str
     rule_id: str
     input_state_hash: str
+    output_state_hash: str
     result: str
     reason: str
     decision_tick: int
@@ -278,6 +319,7 @@ class RuleDecision:
         _require_text(self.event_id, "event_id")
         _require_text(self.rule_id, "rule_id")
         _require_text(self.input_state_hash, "input_state_hash")
+        _require_text(self.output_state_hash, "output_state_hash")
         _require_text(self.result, "result")
         _require_non_negative(self.decision_tick, "decision_tick")
 

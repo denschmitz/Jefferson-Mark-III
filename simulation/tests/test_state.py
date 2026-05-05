@@ -4,6 +4,9 @@ from jefferson_sim.engine import (
     ApprovalRecord,
     AuthorityCharterRecord,
     AuthorityRecord,
+    DelegationRecord,
+    DelegationStatus,
+    RepresentativeRecord,
     ScopeRecord,
     SimulationState,
     StateValidationError,
@@ -106,3 +109,56 @@ def test_state_serialization_and_hash_are_deterministic() -> None:
     assert first.to_dict() == second.to_dict()
     assert first.state_hash() == second.state_hash()
     assert len(first.state_hash()) == 64
+
+
+def test_state_recalculates_raw_delegation_totals_from_active_delegations() -> None:
+    state = SimulationState()
+    state.add_subscriber(SubscriberRecord("sub-1", "token-1"))
+    state.add_representative(
+        RepresentativeRecord("rep-1", "sub-1", raw_delegation_total=99.0)
+    )
+
+    state.add_delegation(
+        DelegationRecord(
+            delegation_id="delegation-1",
+            source_subscriber_id="sub-1",
+            target_representative_id="rep-1",
+            token_share=0.5,
+            submitted_tick=0,
+            activation_tick=0,
+            status=DelegationStatus.ACTIVE,
+        )
+    )
+
+    assert state.representatives["rep-1"].raw_delegation_total == 0.5
+
+
+def test_state_rejects_active_delegation_share_total_above_one() -> None:
+    state = SimulationState()
+    state.add_subscriber(SubscriberRecord("sub-1", "token-1"))
+    state.add_representative(RepresentativeRecord("rep-1", "sub-1"))
+    state.add_representative(RepresentativeRecord("rep-2", "sub-1"))
+    state.add_delegation(
+        DelegationRecord(
+            delegation_id="delegation-1",
+            source_subscriber_id="sub-1",
+            target_representative_id="rep-1",
+            token_share=0.75,
+            submitted_tick=0,
+            activation_tick=0,
+            status=DelegationStatus.ACTIVE,
+        )
+    )
+
+    with pytest.raises(StateValidationError):
+        state.add_delegation(
+            DelegationRecord(
+                delegation_id="delegation-2",
+                source_subscriber_id="sub-1",
+                target_representative_id="rep-2",
+                token_share=0.5,
+                submitted_tick=0,
+                activation_tick=0,
+                status=DelegationStatus.ACTIVE,
+            )
+        )

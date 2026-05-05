@@ -15,18 +15,18 @@ Statuses:
 
 | ID | Status | Gap | Source |
 | --- | --- | --- | --- |
-| SIM-GAP-001 | blocked | Weighting formula mechanics: domain, normalization, aggregation, and raw-versus-weighted voting power. | `docs/simulation_requirements.md` |
-| SIM-GAP-002 | blocked | Subscriber approval mechanics: denominator, quorum, abstention, eligibility snapshot, and rapid membership changes. | `docs/simulation_requirements.md` |
-| SIM-GAP-003 | blocked | Coercive Authority classification test for mixed powers. | `docs/simulation_requirements.md` |
-| SIM-GAP-004 | blocked | Temporary Authority staffing, funding, review, limitation, and dissolution mechanics. | `docs/simulation_requirements.md` |
-| SIM-GAP-005 | blocked | Initial scoped electorates for inherently territorial Authorities. | `docs/simulation_requirements.md` |
-| SIM-GAP-006 | blocked | Institutional satisfaction-rating measurement. | `docs/simulation_requirements.md` |
-| SIM-GAP-007 | blocked | Coalition or consolidated-persona evidentiary standard. | `docs/simulation_requirements.md` |
-| SIM-GAP-008 | blocked | Deliberation Assembly powers beyond evaluation of scope, feasibility, and rights compliance. | `docs/simulation_requirements.md` |
-| SIM-GAP-009 | blocked | Emergency extension deadlock fallback. | `docs/simulation_requirements.md` |
-| SIM-GAP-010 | blocked | Charter Court standards of review. | `docs/simulation_requirements.md` |
-| SIM-GAP-011 | blocked | Authority-Certification Body operations. | `docs/simulation_requirements.md` |
-| SIM-GAP-012 | blocked | Detailed Article XV Funding Act mechanics. | `docs/simulation_requirements.md` |
+| SIM-GAP-001 | blocked | Weighting formula mechanics: domain, normalization, aggregation, and raw-versus-weighted voting power. | `docs/simulation/requirements/deferred_and_open_questions.md` |
+| SIM-GAP-002 | blocked | Subscriber approval mechanics: denominator, quorum, abstention, eligibility snapshot, and rapid membership changes. | `docs/simulation/requirements/deferred_and_open_questions.md` |
+| SIM-GAP-003 | blocked | Coercive Authority classification test for mixed powers. | `docs/simulation/requirements/deferred_and_open_questions.md` |
+| SIM-GAP-004 | blocked | Temporary Authority staffing, funding, review, limitation, and dissolution mechanics. | `docs/simulation/requirements/deferred_and_open_questions.md` |
+| SIM-GAP-005 | blocked | Initial scoped electorates for inherently territorial Authorities. | `docs/simulation/requirements/deferred_and_open_questions.md` |
+| SIM-GAP-006 | blocked | Institutional satisfaction-rating measurement. | `docs/simulation/requirements/deferred_and_open_questions.md` |
+| SIM-GAP-007 | blocked | Coalition or consolidated-persona evidentiary standard. | `docs/simulation/requirements/deferred_and_open_questions.md` |
+| SIM-GAP-008 | blocked | Deliberation Assembly powers beyond evaluation of scope, feasibility, and rights compliance. | `docs/simulation/requirements/deferred_and_open_questions.md` |
+| SIM-GAP-009 | blocked | Emergency extension deadlock fallback. | `docs/simulation/requirements/deferred_and_open_questions.md` |
+| SIM-GAP-010 | blocked | Charter Court standards of review. | `docs/simulation/requirements/deferred_and_open_questions.md` |
+| SIM-GAP-011 | blocked | Authority-Certification Body operations. | `docs/simulation/requirements/deferred_and_open_questions.md` |
+| SIM-GAP-012 | blocked | Detailed Article XV Funding Act mechanics. | `docs/simulation/requirements/deferred_and_open_questions.md` |
 
 ## Deferred First-Pass Implementation Items
 
@@ -46,10 +46,6 @@ Statuses:
 | SIM-IMPL-GAP-012 | deferred | Rights violation simulation. | Must remain abstraction until scenario criteria are defined. |
 | SIM-IMPL-GAP-013 | deferred | Full output time-series coverage for every metric. | First pass may emit limited metrics for implemented rules. |
 | SIM-IMPL-GAP-014 | deferred | Formal JSON Schema for scenario and agent definition files. | Deferred until after the first implementation phases so agent types, behavior parameters, and scenario structure can be defined deliberately. |
-| SIM-IMPL-GAP-015 | open | Scenario manifests do not list enabled Charter-derived rules and simulation abstraction rules. | Required by `SIM-REQ-020C`; current manifest records event ordering and provenance only. |
-| SIM-IMPL-GAP-016 | open | Rule decisions do not expose post-state references for state-changing decisions. | Required by `SIM-REQ-525`; current `RuleDecision` stores only `input_state_hash`. |
-| SIM-IMPL-GAP-017 | open | Approval records accept caller-supplied approval ratios, threshold results, and arbitrary decision types. | Required by `SIM-REQ-531`, `SIM-REQ-535`, and `SIM-REQ-539`; first pass should compute or validate these fields from counts and known decision types. |
-| SIM-IMPL-GAP-018 | open | Initial scenario state can import authoritative representative delegation totals and active delegations without aggregate validation. | Required by `SIM-REQ-503` and `SIM-REQ-507`; event-time activation enforces token conservation, but initial state loading does not. |
 
 ## First-Pass Partial Implementations To Close Later
 

@@ -214,11 +214,12 @@ class EventProcessor:
             return self._handle_delegation_transfer(event, tick)
         if event.event_type == "authority_formation":
             return self._handle_authority_formation(event, tick)
-        decision = self._record_no_op_decision(event, tick)
-        event.status = EventStatus.NO_OP
-        return decision
+        return self._record_no_op_decision(event, tick)
 
-    def _handle_delegation_create(self, event: SimulationEvent, tick: int) -> RuleDecision:
+    def _handle_delegation_create(
+        self, event: SimulationEvent, tick: int, input_state_hash: str | None = None
+    ) -> RuleDecision:
+        pre_state_hash = input_state_hash or self.state.state_hash()
         required = ("source_subscriber_id", "target_representative_id", "token_share")
         missing = [field for field in required if field not in event.payload]
         if missing:
@@ -229,6 +230,7 @@ class EventProcessor:
                 "rejected",
                 f"missing payload fields: {', '.join(missing)}",
                 tick,
+                input_state_hash=pre_state_hash,
             )
 
         source_id = str(event.payload["source_subscriber_id"])
@@ -241,6 +243,7 @@ class EventProcessor:
                 "rejected",
                 f"unknown source Subscriber: {source_id}",
                 tick,
+                input_state_hash=pre_state_hash,
             )
         if target_id not in self.state.representatives:
             event.status = EventStatus.REJECTED
@@ -250,6 +253,7 @@ class EventProcessor:
                 "rejected",
                 f"unknown target Representative: {target_id}",
                 tick,
+                input_state_hash=pre_state_hash,
             )
 
         delegation_id = str(event.payload.get("delegation_id") or f"delegation-{event.event_id}")
@@ -274,6 +278,7 @@ class EventProcessor:
                 "rejected",
                 str(exc),
                 tick,
+                input_state_hash=pre_state_hash,
             )
 
         event.status = EventStatus.PROCESSED
@@ -283,9 +288,11 @@ class EventProcessor:
             "accepted",
             f"delegation_id={delegation_id}; activation_tick={delegation.activation_tick}",
             tick,
+            input_state_hash=pre_state_hash,
         )
 
     def _handle_delegation_revoke(self, event: SimulationEvent, tick: int) -> RuleDecision:
+        pre_state_hash = self.state.state_hash()
         delegation_id = event.payload.get("delegation_id")
         if not delegation_id:
             event.status = EventStatus.REJECTED
@@ -295,6 +302,7 @@ class EventProcessor:
                 "rejected",
                 "missing payload field: delegation_id",
                 tick,
+                input_state_hash=pre_state_hash,
             )
         delegation = self.state.delegations.get(str(delegation_id))
         if delegation is None:
@@ -305,6 +313,7 @@ class EventProcessor:
                 "rejected",
                 f"unknown delegation_id={delegation_id}",
                 tick,
+                input_state_hash=pre_state_hash,
             )
         delegation.status = DelegationStatus.INACTIVE
         delegation.reason = f"revoked_by={event.event_id}"
@@ -316,9 +325,11 @@ class EventProcessor:
             "accepted",
             f"delegation_id={delegation_id}; to_status=inactive",
             tick,
+            input_state_hash=pre_state_hash,
         )
 
     def _handle_delegation_transfer(self, event: SimulationEvent, tick: int) -> RuleDecision:
+        pre_state_hash = self.state.state_hash()
         old_delegation_id = event.payload.get("delegation_id")
         target_id = event.payload.get("target_representative_id")
         if not old_delegation_id or not target_id:
@@ -329,6 +340,7 @@ class EventProcessor:
                 "rejected",
                 "missing payload fields: delegation_id, target_representative_id",
                 tick,
+                input_state_hash=pre_state_hash,
             )
         old_delegation = self.state.delegations.get(str(old_delegation_id))
         if old_delegation is None:
@@ -339,15 +351,17 @@ class EventProcessor:
                 "rejected",
                 f"unknown delegation_id={old_delegation_id}",
                 tick,
+                input_state_hash=pre_state_hash,
             )
         old_delegation.status = DelegationStatus.INACTIVE
         event.payload.setdefault("source_subscriber_id", old_delegation.source_subscriber_id)
         event.payload.setdefault("token_share", old_delegation.token_share)
-        decision = self._handle_delegation_create(event, tick)
+        decision = self._handle_delegation_create(event, tick, input_state_hash=pre_state_hash)
         decision.reason = f"transfer_from={old_delegation_id}; {decision.reason}"
         return decision
 
     def _handle_authority_formation(self, event: SimulationEvent, tick: int) -> RuleDecision:
+        pre_state_hash = self.state.state_hash()
         required = (
             "proposed_authority_id",
             "charter_id",
@@ -364,6 +378,7 @@ class EventProcessor:
                 "rejected",
                 f"missing payload fields: {', '.join(missing)}",
                 tick,
+                input_state_hash=pre_state_hash,
             )
 
         charter_id = str(event.payload["charter_id"])
@@ -379,6 +394,7 @@ class EventProcessor:
                 "rejected",
                 "Authority Charter and scope are required before activation",
                 tick,
+                input_state_hash=pre_state_hash,
             )
 
         approval = self.state.approval_records.get(charter.approval_record_id)
@@ -404,6 +420,7 @@ class EventProcessor:
                 "rejected",
                 f"threshold_required={threshold}; to_state=rejected",
                 tick,
+                input_state_hash=pre_state_hash,
             )
 
         authority = AuthorityRecord(
@@ -428,6 +445,7 @@ class EventProcessor:
                 "rejected",
                 str(exc),
                 tick,
+                input_state_hash=pre_state_hash,
             )
         event.status = EventStatus.PROCESSED
         return self._record_rule_decision(
@@ -436,6 +454,7 @@ class EventProcessor:
             "accepted",
             f"threshold_required={threshold}; to_state=active; review_due_tick={authority.review_due_tick}",
             tick,
+            input_state_hash=pre_state_hash,
         )
 
     def _activate_due_delegations(self, tick: int) -> list[RuleDecision]:
@@ -445,6 +464,7 @@ class EventProcessor:
         ):
             if delegation.status != DelegationStatus.PENDING or delegation.activation_tick > tick:
                 continue
+            pre_state_hash = self.state.state_hash()
             source_event = self._source_event_for_delegation(delegation)
             active_share = sum(
                 item.token_share
@@ -468,6 +488,7 @@ class EventProcessor:
                     result,
                     f"delegation_id={delegation.delegation_id}; to_status={delegation.status.value}",
                     tick,
+                    input_state_hash=pre_state_hash,
                 )
             )
         return decisions
@@ -494,13 +515,7 @@ class EventProcessor:
         return synthetic
 
     def _recalculate_representative_totals(self) -> None:
-        for representative in self.state.representatives.values():
-            representative.raw_delegation_total = 0.0
-        for delegation in self.state.delegations.values():
-            if delegation.status == DelegationStatus.ACTIVE:
-                self.state.representatives[
-                    delegation.target_representative_id
-                ].raw_delegation_total += delegation.token_share
+        self.state.recalculate_representative_totals()
 
     def _record_rule_decision(
         self,
@@ -509,12 +524,14 @@ class EventProcessor:
         result: str,
         reason: str,
         tick: int,
+        input_state_hash: str | None = None,
     ) -> RuleDecision:
         decision = RuleDecision(
             decision_id=self._next_decision_id(),
             event_id=event.event_id,
             rule_id=rule_id,
-            input_state_hash=self.state.state_hash(),
+            input_state_hash=input_state_hash or self.state.state_hash(),
+            output_state_hash=self.state.state_hash(),
             result=result,
             reason=reason,
             decision_tick=tick,
@@ -523,12 +540,15 @@ class EventProcessor:
         return decision
 
     def _record_no_op_decision(self, event: SimulationEvent, tick: int) -> RuleDecision:
+        pre_state_hash = self.state.state_hash()
+        event.status = EventStatus.NO_OP
         return self._record_rule_decision(
             event,
             NO_OP_RULE_ID,
             EventStatus.NO_OP.value,
             "No state-changing rule registered for event type",
             tick,
+            input_state_hash=pre_state_hash,
         )
 
     def _next_event_id(self) -> str:

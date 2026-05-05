@@ -12,6 +12,7 @@ from .records import (
     AuthorityCharterRecord,
     AuthorityRecord,
     DelegationRecord,
+    DelegationStatus,
     MetricRecord,
     RepresentativeRecord,
     RuleDecision,
@@ -46,7 +47,13 @@ class SimulationState:
         self._add_unique(self.representatives, record.representative_id, record)
 
     def add_delegation(self, record: DelegationRecord) -> None:
+        if record.source_subscriber_id not in self.subscribers:
+            raise StateValidationError("delegation source subscriber does not exist")
+        if record.target_representative_id not in self.representatives:
+            raise StateValidationError("delegation target representative does not exist")
+        self._validate_active_delegation_shares(record)
         self._add_unique(self.delegations, record.delegation_id, record)
+        self.recalculate_representative_totals()
 
     def add_authority(self, record: AuthorityRecord) -> None:
         if record.charter_id not in self.authority_charters:
@@ -96,6 +103,39 @@ class SimulationState:
 
     def state_hash(self) -> str:
         return hashlib.sha256(self.to_json().encode("utf-8")).hexdigest()
+
+    def recalculate_representative_totals(self) -> None:
+        for representative in self.representatives.values():
+            representative.raw_delegation_total = 0.0
+        for delegation in self.delegations.values():
+            if delegation.status != DelegationStatus.ACTIVE:
+                continue
+            self.representatives[
+                delegation.target_representative_id
+            ].raw_delegation_total += delegation.token_share
+
+    def validate_active_delegation_shares(self) -> None:
+        self._validate_active_delegation_shares()
+
+    def _validate_active_delegation_shares(
+        self, proposed_record: DelegationRecord | None = None
+    ) -> None:
+        active_share_by_subscriber: dict[str, float] = {}
+        delegations = list(self.delegations.values())
+        if proposed_record is not None:
+            delegations.append(proposed_record)
+        for delegation in delegations:
+            if delegation.status != DelegationStatus.ACTIVE:
+                continue
+            active_share_by_subscriber[delegation.source_subscriber_id] = (
+                active_share_by_subscriber.get(delegation.source_subscriber_id, 0.0)
+                + delegation.token_share
+            )
+        for subscriber_id, token_share in active_share_by_subscriber.items():
+            if token_share > 1:
+                raise StateValidationError(
+                    f"active delegation token_share total exceeds one for subscriber: {subscriber_id}"
+                )
 
     @staticmethod
     def _add_unique(records: dict[str, Any], record_id: str, record: Any) -> None:

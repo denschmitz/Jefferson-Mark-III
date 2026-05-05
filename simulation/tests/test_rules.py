@@ -1,4 +1,9 @@
-from jefferson_sim.engine import RuleMetadata, ValidationSeverity, validate_rule_metadata
+from jefferson_sim.engine import (
+    RuleMetadata,
+    ValidationSeverity,
+    enabled_rule_manifest,
+    validate_rule_metadata,
+)
 
 
 def test_charter_traced_rule_metadata_is_valid() -> None:
@@ -51,3 +56,17 @@ def test_abstraction_rule_emits_notice() -> None:
 
     assert not report.has_errors
     assert any(issue.severity == ValidationSeverity.NOTICE for issue in report.issues)
+
+
+def test_enabled_rule_manifest_lists_charter_and_abstraction_rules() -> None:
+    manifest = enabled_rule_manifest(["satisfaction_metric"])
+
+    charter_rule_ids = {rule["rule_id"] for rule in manifest["charter_derived"]}
+    abstraction_labels = {
+        rule["abstraction_label"] for rule in manifest["simulation_abstractions"]
+    }
+
+    assert "SIM-RULE-AUTHORITY-FORMATION" in charter_rule_ids
+    assert "SIM-RULE-DELEGATION-CREATE" in charter_rule_ids
+    assert "event_noop" in abstraction_labels
+    assert "satisfaction_metric" in abstraction_labels

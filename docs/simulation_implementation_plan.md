@@ -4,7 +4,7 @@
 
 This plan defines the first implementation pass for the Jefferson Mark III simulation engine. It is scoped to the deterministic engine spine and a narrow rules subset. It does not attempt the full scenario suite, rich Mesa agents, or complete Charter simulation.
 
-The implementation shall use `docs/simulation_requirements.md` as the requirements source and `docs/simulation_design.md` as the design guide.
+The implementation shall use `docs/simulation/requirements/index.md` as the requirements source and `docs/simulation_design.md` as the design guide.
 
 ## Phase 0 - Environment And Test Harness
 

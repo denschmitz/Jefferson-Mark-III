@@ -22,7 +22,10 @@ from .records import (
     ScopeRecord,
     SimulationEvent,
     SubscriberRecord,
+    SUPPORTED_APPROVAL_DECISION_TYPES,
     ThresholdResult,
+    approval_ratio_from_counts,
+    threshold_result_from_ratio,
 )
 from .config import (
     CharterDerivativeConfig,
@@ -67,7 +70,14 @@ from .outputs import (
     write_run_outputs,
 )
 from .runner import ScenarioRunResult, run_scenario_config, run_scenario_file
-from .rules import RuleMetadata, validate_rule_metadata
+from .rules import (
+    DEFAULT_CHARTER_RULES,
+    DEFAULT_SIMULATION_ABSTRACTION_RULES,
+    RuleMetadata,
+    enabled_rule_manifest,
+    simulation_abstraction_rule,
+    validate_rule_metadata,
+)
 from .state import SimulationState, StateValidationError
 from .validation import (
     ValidationFailedError,
@@ -90,6 +100,8 @@ __all__ = [
     "DELEGATION_ACTIVATE_RULE_ID",
     "DELEGATION_CREATE_RULE_ID",
     "DELEGATION_REVOKE_RULE_ID",
+    "DEFAULT_CHARTER_RULES",
+    "DEFAULT_SIMULATION_ABSTRACTION_RULES",
     "DelegationRecord",
     "DelegationStatus",
     "EVENT_PRIORITY",
@@ -115,6 +127,7 @@ __all__ = [
     "SimulationState",
     "StateValidationError",
     "SubscriberRecord",
+    "SUPPORTED_APPROVAL_DECISION_TYPES",
     "ThresholdResult",
     "TickProcessingResult",
     "ValidationFailedError",
@@ -122,11 +135,13 @@ __all__ = [
     "ValidationReport",
     "ValidationSeverity",
     "approval_passes_threshold",
+    "approval_ratio_from_counts",
     "authority_count",
     "authority_formation_threshold",
     "can_execute_ordinary_action",
     "can_transition_authority",
     "delegation_churn",
+    "enabled_rule_manifest",
     "evaluate_approval_record",
     "lifecycle_transition_count",
     "load_charter_derivative",
@@ -135,7 +150,9 @@ __all__ = [
     "raw_power_concentration",
     "run_scenario_config",
     "run_scenario_file",
+    "simulation_abstraction_rule",
     "transition_authority",
+    "threshold_result_from_ratio",
     "validate_charter_derivative",
     "validate_rule_metadata",
     "validate_scenario",

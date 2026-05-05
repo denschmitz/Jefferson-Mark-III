@@ -89,6 +89,7 @@ def test_approval_threshold_helper_uses_approval_ratio() -> None:
         threshold_required=0.75,
         threshold_result=ThresholdResult.FAIL,
         snapshot_tick=0,
+        assumptions_used=["fixed_eligible_snapshot"],
     )
 
     assert evaluate_approval_record(record) == ThresholdResult.FAIL

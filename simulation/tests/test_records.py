@@ -16,6 +16,8 @@ from jefferson_sim.engine import (
     SimulationEvent,
     SubscriberRecord,
     ThresholdResult,
+    approval_ratio_from_counts,
+    threshold_result_from_ratio,
 )
 
 
@@ -55,6 +57,67 @@ def test_approval_record_rejects_invalid_counts() -> None:
             threshold_result=ThresholdResult.PASS,
             snapshot_tick=0,
         )
+
+
+def test_approval_record_rejects_inconsistent_ratio() -> None:
+    with pytest.raises(RecordValidationError):
+        ApprovalRecord(
+            approval_record_id="approval-1",
+            decision_type="authority_formation",
+            subject_id="authority-1",
+            electorate_basis="all_subscribers",
+            eligible_count=100,
+            approval_count=60,
+            rejection_count=40,
+            abstention_count=0,
+            approval_ratio=0.75,
+            threshold_required=0.75,
+            threshold_result=ThresholdResult.PASS,
+            snapshot_tick=0,
+        )
+
+
+def test_approval_record_rejects_inconsistent_threshold_result() -> None:
+    with pytest.raises(RecordValidationError):
+        ApprovalRecord(
+            approval_record_id="approval-1",
+            decision_type="authority_formation",
+            subject_id="authority-1",
+            electorate_basis="all_subscribers",
+            eligible_count=100,
+            approval_count=60,
+            rejection_count=40,
+            abstention_count=0,
+            approval_ratio=0.60,
+            threshold_required=0.75,
+            threshold_result=ThresholdResult.PASS,
+            snapshot_tick=0,
+        )
+
+
+def test_approval_record_rejects_unsupported_decision_type() -> None:
+    with pytest.raises(RecordValidationError):
+        ApprovalRecord(
+            approval_record_id="approval-1",
+            decision_type="informal_poll",
+            subject_id="authority-1",
+            electorate_basis="all_subscribers",
+            eligible_count=100,
+            approval_count=60,
+            rejection_count=40,
+            abstention_count=0,
+            approval_ratio=0.60,
+            threshold_required=0.75,
+            threshold_result=ThresholdResult.FAIL,
+            snapshot_tick=0,
+        )
+
+
+def test_approval_helpers_compute_ratio_and_threshold_result() -> None:
+    assert approval_ratio_from_counts(75, 100) == 0.75
+    assert approval_ratio_from_counts(0, 0) == 0.0
+    assert threshold_result_from_ratio(0.75, 0.75) == ThresholdResult.PASS
+    assert threshold_result_from_ratio(0.74, 0.75) == ThresholdResult.FAIL
 
 
 def test_authority_charter_requires_charter_fields() -> None:
@@ -113,6 +176,7 @@ def test_all_phase_one_records_can_be_constructed() -> None:
         event_id="event-1",
         rule_id="rule-1",
         input_state_hash="abc123",
+        output_state_hash="def456",
         result="accepted",
         reason="fixture",
         decision_tick=0,
