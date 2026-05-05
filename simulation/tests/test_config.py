@@ -60,6 +60,110 @@ def test_scenario_missing_required_fields_fails_validation() -> None:
     assert any(issue.code == "scenario.missing_field" for issue in report.issues)
 
 
+def test_runner_consumed_text_fields_must_be_non_empty_strings() -> None:
+    scenario = minimal_scenario()
+    scenario["output_path"] = ""
+
+    report = validate_scenario(scenario)
+
+    assert report.has_errors
+    assert any(issue.code == "scenario.output_path.invalid" for issue in report.issues)
+
+
+def test_initial_state_must_be_mapping() -> None:
+    scenario = minimal_scenario()
+    scenario["initial_state"] = []
+
+    report = validate_scenario(scenario)
+
+    assert report.has_errors
+    assert any(issue.code == "scenario.initial_state.invalid" for issue in report.issues)
+
+
+def test_initial_state_collections_must_be_lists() -> None:
+    scenario = minimal_scenario()
+    scenario["initial_state"] = {"subscribers": {"subscriber_id": "sub-1"}}
+
+    report = validate_scenario(scenario)
+
+    assert report.has_errors
+    assert any(issue.code == "scenario.initial_state.collection.invalid" for issue in report.issues)
+
+
+def test_initial_state_records_must_include_runner_required_fields() -> None:
+    scenario = minimal_scenario()
+    scenario["initial_state"] = {"representatives": [{"representative_id": "rep-1"}]}
+
+    report = validate_scenario(scenario)
+
+    assert report.has_errors
+    assert any(
+        issue.code == "scenario.initial_state.record.missing_field"
+        and issue.path == "initial_state.representatives.0.subscriber_id"
+        for issue in report.issues
+    )
+
+
+def test_event_schedule_must_be_list_of_mappings() -> None:
+    scenario = minimal_scenario()
+    scenario["event_schedule"] = ["delegation_create"]
+
+    report = validate_scenario(scenario)
+
+    assert report.has_errors
+    assert any(issue.code == "scenario.event_schedule.event.invalid" for issue in report.issues)
+
+
+def test_event_schedule_requires_fields_used_for_event_input() -> None:
+    scenario = minimal_scenario()
+    scenario["event_schedule"] = [{"event_type": "noop"}]
+
+    report = validate_scenario(scenario)
+
+    assert report.has_errors
+    assert any(
+        issue.code == "scenario.event_schedule.event.missing_field"
+        and issue.path == "event_schedule.0.actor_id"
+        for issue in report.issues
+    )
+    assert any(
+        issue.code == "scenario.event_schedule.event.missing_field"
+        and issue.path == "event_schedule.0.effective_tick"
+        for issue in report.issues
+    )
+
+
+def test_event_schedule_rejects_unknown_event_type_before_processing() -> None:
+    scenario = minimal_scenario()
+    scenario["event_schedule"] = [
+        {"event_type": "unknown", "effective_tick": 0, "actor_id": "sub-1"}
+    ]
+
+    report = validate_scenario(scenario)
+
+    assert report.has_errors
+    assert any(issue.code == "scenario.event_schedule.event_type.unknown" for issue in report.issues)
+
+
+def test_event_schedule_payload_and_provenance_must_be_mappings() -> None:
+    scenario = minimal_scenario()
+    scenario["event_schedule"] = [
+        {
+            "event_type": "noop",
+            "effective_tick": 0,
+            "actor_id": "sub-1",
+            "payload": [],
+            "provenance": [],
+        }
+    ]
+
+    report = validate_scenario(scenario)
+
+    assert report.has_errors
+    assert any(issue.code == "scenario.event_schedule.payload.invalid" for issue in report.issues)
+    assert any(issue.code == "scenario.event_schedule.provenance.invalid" for issue in report.issues)
+
+
 def test_required_gap_assumption_must_be_declared() -> None:
     scenario = minimal_scenario()
     scenario["required_gap_assumptions"] = ["SIM-GAP-002"]

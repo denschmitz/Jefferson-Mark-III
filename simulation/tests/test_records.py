@@ -13,6 +13,8 @@ from jefferson_sim.engine import (
     RepresentativeRecord,
     RuleDecision,
     ScopeRecord,
+    ScopeConflictClassification,
+    ScopeConflictRecord,
     SimulationEvent,
     SubscriberRecord,
     ThresholdResult,
@@ -189,3 +191,22 @@ def test_all_phase_one_records_can_be_constructed() -> None:
         value=0.0,
         unit="share",
     )
+    ScopeConflictRecord(
+        conflict_id="scope-conflict-1",
+        authority_ids=["authority-1", "authority-2"],
+        scope_ids=["scope-1", "scope-2"],
+        conflict_basis=[ScopeConflictClassification.TERRITORIAL],
+        detected_tick=1,
+        trigger_event_id="event-1",
+    )
+
+
+def test_scope_conflict_record_requires_core_fields() -> None:
+    with pytest.raises(RecordValidationError):
+        ScopeConflictRecord(
+            conflict_id="",
+            authority_ids=["authority-1"],
+            scope_ids=["scope-1"],
+            conflict_basis=[ScopeConflictClassification.PROHIBITED_POWER],
+            detected_tick=0,
+        )

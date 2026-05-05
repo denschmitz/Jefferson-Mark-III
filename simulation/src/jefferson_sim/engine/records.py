@@ -60,6 +60,16 @@ class AuthorityLifecycleState(StrEnum):
     SEPARATED = "separated"
 
 
+class ScopeConflictClassification(StrEnum):
+    FUNCTIONAL = "functional"
+    TERRITORIAL = "territorial"
+    POPULATION = "population"
+    RESOURCE = "resource"
+    ENFORCEMENT = "enforcement"
+    PROHIBITED_POWER = "prohibited_power"
+    MIXED = "mixed"
+
+
 def _require_text(value: str, field_name: str) -> None:
     if not isinstance(value, str) or not value:
         raise RecordValidationError(f"{field_name} is required")
@@ -221,6 +231,31 @@ class AuthorityRecord:
         _require_text(self.charter_id, "charter_id")
         _require_text(self.authority_type, "authority_type")
         _require_text(self.scope_id, "scope_id")
+
+    def to_dict(self) -> dict[str, Any]:
+        return to_primitive(self)
+
+
+@dataclass(slots=True)
+class ScopeConflictRecord:
+    conflict_id: str
+    authority_ids: list[str]
+    scope_ids: list[str]
+    conflict_basis: list[ScopeConflictClassification]
+    detected_tick: int
+    resolution_status: str = "unresolved"
+    trigger_event_id: str | None = None
+
+    def __post_init__(self) -> None:
+        _require_text(self.conflict_id, "conflict_id")
+        if not self.authority_ids:
+            raise RecordValidationError("authority_ids is required")
+        if not self.scope_ids:
+            raise RecordValidationError("scope_ids is required")
+        if not self.conflict_basis:
+            raise RecordValidationError("conflict_basis is required")
+        _require_non_negative(self.detected_tick, "detected_tick")
+        _require_text(self.resolution_status, "resolution_status")
 
     def to_dict(self) -> dict[str, Any]:
         return to_primitive(self)

@@ -1,0 +1,57 @@
+scenario_id: authority_rejection
+scenario_version: 0.1.0
+charter_derivative_path: derivatives/simulation/charter_sim.yaml
+random_seed: 303
+duration: 1
+tick_duration: day
+output_path: simulation/runs/authority_rejection
+population_size: 100
+agent_distributions:
+  subscriber:
+    count: 100
+output_settings:
+  format: json
+required_gap_assumptions:
+  - SIM-GAP-002
+gap_assumptions:
+  SIM-GAP-002: fixed eligible snapshot with approvals counted against all eligible subscribers
+initial_state:
+  approval_records:
+    - approval_record_id: approval-1
+      decision_type: authority_formation
+      subject_id: authority-1
+      electorate_basis: all_subscribers
+      eligible_count: 100
+      approval_count: 74
+      rejection_count: 26
+      abstention_count: 0
+      approval_ratio: 0.74
+      threshold_required: 0.75
+      threshold_result: fail
+      snapshot_tick: 0
+      assumptions_used:
+        - fixed_eligible_snapshot
+  scopes:
+    - scope_id: scope-1
+      function: public_safety
+      permitted_powers: [patrol]
+      enforcement_authority: [citation]
+  authority_charters:
+    - charter_id: charter-1
+      scope_id: scope-1
+      funding_sources: [authority_surtax]
+      renewal_process: five_year_review
+      oversight_structures: [public_audit]
+      formation_threshold: 0.75
+      approval_record_id: approval-1
+event_schedule:
+  - event_type: authority_formation
+    submitted_tick: 0
+    effective_tick: 0
+    actor_id: sub-1
+    payload:
+      proposed_authority_id: authority-1
+      charter_id: charter-1
+      coercive_status: true
+      authority_type: public_safety
+      scope_id: scope-1

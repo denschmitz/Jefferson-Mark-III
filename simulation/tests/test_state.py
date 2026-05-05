@@ -8,6 +8,8 @@ from jefferson_sim.engine import (
     DelegationStatus,
     RepresentativeRecord,
     ScopeRecord,
+    ScopeConflictClassification,
+    ScopeConflictRecord,
     SimulationState,
     StateValidationError,
     SubscriberRecord,
@@ -109,6 +111,25 @@ def test_state_serialization_and_hash_are_deterministic() -> None:
     assert first.to_dict() == second.to_dict()
     assert first.state_hash() == second.state_hash()
     assert len(first.state_hash()) == 64
+
+
+def test_state_stores_scope_conflicts_in_serialized_state() -> None:
+    state = SimulationState()
+
+    state.add_scope_conflict(
+        ScopeConflictRecord(
+            conflict_id="scope-conflict-1",
+            authority_ids=["authority-1"],
+            scope_ids=["scope-1"],
+            conflict_basis=[ScopeConflictClassification.PROHIBITED_POWER],
+            detected_tick=0,
+            trigger_event_id="event-1",
+        )
+    )
+
+    assert state.to_dict()["scope_conflicts"]["scope-conflict-1"]["conflict_basis"] == [
+        "prohibited_power"
+    ]
 
 
 def test_state_recalculates_raw_delegation_totals_from_active_delegations() -> None:

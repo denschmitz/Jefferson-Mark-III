@@ -6,6 +6,7 @@ import pytest
 from jefferson_sim.engine import (
     AuthorityLifecycleState,
     DelegationStatus,
+    ScopeConflictClassification,
     StateValidationError,
     load_scenario,
     run_scenario_config,
@@ -67,6 +68,56 @@ def test_authority_creation_expected_state_decisions_and_metrics() -> None:
     assert metrics["authority_count"] == 1
 
 
+def test_authority_rejection_scenario_runs_deterministically() -> None:
+    scenario_path = SCENARIO_DIR / "authority_rejection.yaml"
+
+    first = run_scenario_file(scenario_path, write_outputs=False)
+    second = run_scenario_file(scenario_path, write_outputs=False)
+
+    assert first.final_state_hash == second.final_state_hash
+
+
+def test_authority_rejection_expected_state_decisions_and_metrics() -> None:
+    scenario_path = SCENARIO_DIR / "authority_rejection.yaml"
+
+    result = run_scenario_file(scenario_path, write_outputs=False)
+    state = result.processor.state
+
+    authority = state.authorities["authority-1"]
+    assert authority.lifecycle_status == AuthorityLifecycleState.REJECTED
+    assert state.rule_decisions[-1].rule_id == "SIM-RULE-AUTHORITY-FORMATION"
+    assert state.rule_decisions[-1].result == "rejected"
+    metrics = {metric.metric_id: metric.value for metric in state.metrics}
+    assert metrics["authority_count"] == 0
+
+
+def test_scope_conflict_scenario_runs_deterministically() -> None:
+    scenario_path = SCENARIO_DIR / "scope_conflict.yaml"
+
+    first = run_scenario_file(scenario_path, write_outputs=False)
+    second = run_scenario_file(scenario_path, write_outputs=False)
+
+    assert first.final_state_hash == second.final_state_hash
+
+
+def test_scope_conflict_expected_state_decisions_and_metrics() -> None:
+    scenario_path = SCENARIO_DIR / "scope_conflict.yaml"
+
+    result = run_scenario_file(scenario_path, write_outputs=False)
+    state = result.processor.state
+
+    assert len(state.scope_conflicts) == 1
+    conflict = next(iter(state.scope_conflicts.values()))
+    assert conflict.authority_ids == [
+        "traffic-access-authority",
+        "traffic-closure-authority",
+    ]
+    assert conflict.conflict_basis == [ScopeConflictClassification.MIXED]
+    assert state.rule_decisions[-1].result == "accepted_with_conflicts"
+    metrics = {metric.metric_id: metric.value for metric in state.metrics}
+    assert metrics["authority_count"] == 2
+
+
 def test_minimal_scenario_outputs_are_written() -> None:
     scenario_path = SCENARIO_DIR / "authority_creation.yaml"
 
@@ -81,6 +132,26 @@ def test_minimal_scenario_outputs_are_written() -> None:
     assert manifest["enabled_rules"]["charter_derived"]
     assert manifest["enabled_rules"]["simulation_abstractions"]
     assert final_state["authorities"]["authority-1"]["lifecycle_status"] == "active"
+
+
+def test_scope_conflict_scenario_outputs_include_conflict_and_abstraction_notice() -> None:
+    scenario_path = SCENARIO_DIR / "scope_conflict.yaml"
+
+    result = run_scenario_file(scenario_path, write_outputs=True)
+
+    assert result.output_paths is not None
+    manifest = json.loads(result.output_paths.manifest.read_text(encoding="utf-8"))
+    final_state = json.loads(result.output_paths.final_state.read_text(encoding="utf-8"))
+
+    abstraction_labels = {
+        rule["abstraction_label"]
+        for rule in manifest["enabled_rules"]["simulation_abstractions"]
+    }
+    assert "scope_incompatibility_matrix" in abstraction_labels
+    assert final_state["scope_conflicts"]
+    assert final_state["scope_conflicts"][
+        "scope-conflict-t0-traffic-access-authority-traffic-closure-authority-mixed-traffic-access-scope-traffic-closure-scope"
+    ]["resolution_status"] == "unresolved"
 
 
 def test_initial_state_recalculates_representative_totals_from_active_delegations() -> None:

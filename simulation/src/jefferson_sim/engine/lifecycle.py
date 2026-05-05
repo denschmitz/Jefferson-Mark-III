@@ -19,16 +19,12 @@ ALLOWED_AUTHORITY_TRANSITIONS = {
         AuthorityLifecycleState.UNDER_REVIEW,
         AuthorityLifecycleState.SUSPENDED,
         AuthorityLifecycleState.DISSOLVING,
-        AuthorityLifecycleState.MERGED,
-        AuthorityLifecycleState.SEPARATED,
     },
     AuthorityLifecycleState.UNDER_REVIEW: {
         AuthorityLifecycleState.ACTIVE,
         AuthorityLifecycleState.REAUTHORIZATION_REQUIRED,
         AuthorityLifecycleState.SUSPENDED,
         AuthorityLifecycleState.DISSOLVING,
-        AuthorityLifecycleState.MERGED,
-        AuthorityLifecycleState.SEPARATED,
     },
     AuthorityLifecycleState.REAUTHORIZATION_REQUIRED: {
         AuthorityLifecycleState.ACTIVE,
@@ -38,11 +34,7 @@ ALLOWED_AUTHORITY_TRANSITIONS = {
         AuthorityLifecycleState.ACTIVE,
         AuthorityLifecycleState.DISSOLVING,
     },
-    AuthorityLifecycleState.DISSOLVING: {
-        AuthorityLifecycleState.DISSOLVED,
-        AuthorityLifecycleState.MERGED,
-        AuthorityLifecycleState.SEPARATED,
-    },
+    AuthorityLifecycleState.DISSOLVING: {AuthorityLifecycleState.DISSOLVED},
     AuthorityLifecycleState.REJECTED: set(),
     AuthorityLifecycleState.DISSOLVED: set(),
     AuthorityLifecycleState.MERGED: set(),
@@ -69,5 +61,12 @@ def transition_authority(
     authority.lifecycle_status = to_state
 
 
-def can_execute_ordinary_action(authority: AuthorityRecord) -> bool:
-    return authority.lifecycle_status in ORDINARY_ACTION_STATES
+def can_execute_ordinary_action(
+    authority: AuthorityRecord, review_continuation_allowed: bool = False
+) -> bool:
+    if authority.lifecycle_status in ORDINARY_ACTION_STATES:
+        return True
+    return (
+        review_continuation_allowed
+        and authority.lifecycle_status == AuthorityLifecycleState.UNDER_REVIEW
+    )

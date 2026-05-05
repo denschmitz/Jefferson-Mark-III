@@ -1,6 +1,7 @@
 import pytest
 
 from jefferson_sim.engine import (
+    ALLOWED_AUTHORITY_TRANSITIONS,
     ApprovalRecord,
     AuthorityCharterRecord,
     AuthorityLifecycleState,
@@ -233,6 +234,159 @@ def test_lifecycle_rejects_invalid_transition_and_gates_actions() -> None:
     transition_authority(authority, AuthorityLifecycleState.CHARTERED)
     transition_authority(authority, AuthorityLifecycleState.ACTIVE)
     assert can_execute_ordinary_action(authority)
+
+
+@pytest.mark.parametrize(
+    ("from_state", "to_state"),
+    [
+        (AuthorityLifecycleState.PROPOSED, AuthorityLifecycleState.CHARTERED),
+        (AuthorityLifecycleState.PROPOSED, AuthorityLifecycleState.REJECTED),
+        (AuthorityLifecycleState.CHARTERED, AuthorityLifecycleState.ACTIVE),
+        (AuthorityLifecycleState.ACTIVE, AuthorityLifecycleState.UNDER_REVIEW),
+        (AuthorityLifecycleState.ACTIVE, AuthorityLifecycleState.SUSPENDED),
+        (AuthorityLifecycleState.ACTIVE, AuthorityLifecycleState.DISSOLVING),
+        (AuthorityLifecycleState.UNDER_REVIEW, AuthorityLifecycleState.ACTIVE),
+        (
+            AuthorityLifecycleState.UNDER_REVIEW,
+            AuthorityLifecycleState.REAUTHORIZATION_REQUIRED,
+        ),
+        (AuthorityLifecycleState.UNDER_REVIEW, AuthorityLifecycleState.SUSPENDED),
+        (AuthorityLifecycleState.UNDER_REVIEW, AuthorityLifecycleState.DISSOLVING),
+        (
+            AuthorityLifecycleState.REAUTHORIZATION_REQUIRED,
+            AuthorityLifecycleState.ACTIVE,
+        ),
+        (
+            AuthorityLifecycleState.REAUTHORIZATION_REQUIRED,
+            AuthorityLifecycleState.DISSOLVING,
+        ),
+        (AuthorityLifecycleState.SUSPENDED, AuthorityLifecycleState.ACTIVE),
+        (AuthorityLifecycleState.SUSPENDED, AuthorityLifecycleState.DISSOLVING),
+        (AuthorityLifecycleState.DISSOLVING, AuthorityLifecycleState.DISSOLVED),
+    ],
+)
+def test_first_pass_lifecycle_allows_supported_transitions(
+    from_state: AuthorityLifecycleState, to_state: AuthorityLifecycleState
+) -> None:
+    authority = AuthorityRecord(
+        authority_id="authority-1",
+        charter_id="charter-1",
+        authority_type="public_safety",
+        coercive_status=True,
+        scope_id="scope-1",
+        lifecycle_status=from_state,
+    )
+
+    transition_authority(authority, to_state)
+
+    assert authority.lifecycle_status == to_state
+
+
+def test_lifecycle_all_supported_transitions_are_covered_by_tests() -> None:
+    expected = {
+        (AuthorityLifecycleState.PROPOSED, AuthorityLifecycleState.CHARTERED),
+        (AuthorityLifecycleState.PROPOSED, AuthorityLifecycleState.REJECTED),
+        (AuthorityLifecycleState.CHARTERED, AuthorityLifecycleState.ACTIVE),
+        (AuthorityLifecycleState.ACTIVE, AuthorityLifecycleState.UNDER_REVIEW),
+        (AuthorityLifecycleState.ACTIVE, AuthorityLifecycleState.SUSPENDED),
+        (AuthorityLifecycleState.ACTIVE, AuthorityLifecycleState.DISSOLVING),
+        (AuthorityLifecycleState.UNDER_REVIEW, AuthorityLifecycleState.ACTIVE),
+        (
+            AuthorityLifecycleState.UNDER_REVIEW,
+            AuthorityLifecycleState.REAUTHORIZATION_REQUIRED,
+        ),
+        (AuthorityLifecycleState.UNDER_REVIEW, AuthorityLifecycleState.SUSPENDED),
+        (AuthorityLifecycleState.UNDER_REVIEW, AuthorityLifecycleState.DISSOLVING),
+        (
+            AuthorityLifecycleState.REAUTHORIZATION_REQUIRED,
+            AuthorityLifecycleState.ACTIVE,
+        ),
+        (
+            AuthorityLifecycleState.REAUTHORIZATION_REQUIRED,
+            AuthorityLifecycleState.DISSOLVING,
+        ),
+        (AuthorityLifecycleState.SUSPENDED, AuthorityLifecycleState.ACTIVE),
+        (AuthorityLifecycleState.SUSPENDED, AuthorityLifecycleState.DISSOLVING),
+        (AuthorityLifecycleState.DISSOLVING, AuthorityLifecycleState.DISSOLVED),
+    }
+    actual = {
+        (from_state, to_state)
+        for from_state, to_states in ALLOWED_AUTHORITY_TRANSITIONS.items()
+        for to_state in to_states
+    }
+
+    assert actual == expected
+
+
+@pytest.mark.parametrize(
+    ("from_state", "to_state"),
+    [
+        (AuthorityLifecycleState.PROPOSED, AuthorityLifecycleState.ACTIVE),
+        (AuthorityLifecycleState.CHARTERED, AuthorityLifecycleState.UNDER_REVIEW),
+        (AuthorityLifecycleState.REJECTED, AuthorityLifecycleState.ACTIVE),
+        (AuthorityLifecycleState.DISSOLVED, AuthorityLifecycleState.ACTIVE),
+        (AuthorityLifecycleState.ACTIVE, AuthorityLifecycleState.MERGED),
+        (AuthorityLifecycleState.ACTIVE, AuthorityLifecycleState.SEPARATED),
+        (AuthorityLifecycleState.DISSOLVING, AuthorityLifecycleState.ACTIVE),
+    ],
+)
+def test_first_pass_lifecycle_rejects_unsupported_transitions(
+    from_state: AuthorityLifecycleState, to_state: AuthorityLifecycleState
+) -> None:
+    authority = AuthorityRecord(
+        authority_id="authority-1",
+        charter_id="charter-1",
+        authority_type="public_safety",
+        coercive_status=True,
+        scope_id="scope-1",
+        lifecycle_status=from_state,
+    )
+
+    with pytest.raises(LifecycleTransitionError):
+        transition_authority(authority, to_state)
+
+
+@pytest.mark.parametrize(
+    "state",
+    [
+        AuthorityLifecycleState.PROPOSED,
+        AuthorityLifecycleState.REJECTED,
+        AuthorityLifecycleState.CHARTERED,
+        AuthorityLifecycleState.SUSPENDED,
+        AuthorityLifecycleState.DISSOLVING,
+        AuthorityLifecycleState.DISSOLVED,
+        AuthorityLifecycleState.MERGED,
+        AuthorityLifecycleState.SEPARATED,
+        AuthorityLifecycleState.REAUTHORIZATION_REQUIRED,
+    ],
+)
+def test_lifecycle_blocks_ordinary_actions_for_inactive_states(
+    state: AuthorityLifecycleState,
+) -> None:
+    authority = AuthorityRecord(
+        authority_id="authority-1",
+        charter_id="charter-1",
+        authority_type="public_safety",
+        coercive_status=True,
+        scope_id="scope-1",
+        lifecycle_status=state,
+    )
+
+    assert not can_execute_ordinary_action(authority)
+
+
+def test_lifecycle_under_review_actions_require_explicit_continuation() -> None:
+    authority = AuthorityRecord(
+        authority_id="authority-1",
+        charter_id="charter-1",
+        authority_type="public_safety",
+        coercive_status=True,
+        scope_id="scope-1",
+        lifecycle_status=AuthorityLifecycleState.UNDER_REVIEW,
+    )
+
+    assert not can_execute_ordinary_action(authority)
+    assert can_execute_ordinary_action(authority, review_continuation_allowed=True)
 
 
 def test_narrow_metric_formulas() -> None:

@@ -1,0 +1,103 @@
+scenario_id: scope_conflict
+scenario_version: 0.1.0
+charter_derivative_path: derivatives/simulation/charter_sim.yaml
+random_seed: 404
+duration: 1
+tick_duration: day
+output_path: simulation/runs/scope_conflict
+population_size: 100
+agent_distributions:
+  subscriber:
+    count: 100
+output_settings:
+  format: json
+simulation_abstractions:
+  - scope_incompatibility_matrix
+required_gap_assumptions:
+  - SIM-GAP-002
+gap_assumptions:
+  SIM-GAP-002: fixed eligible snapshot with approvals counted against all eligible subscribers
+initial_state:
+  approval_records:
+    - approval_record_id: approval-1
+      decision_type: authority_formation
+      subject_id: authority-1
+      electorate_basis: all_subscribers
+      eligible_count: 100
+      approval_count: 75
+      rejection_count: 25
+      abstention_count: 0
+      approval_ratio: 0.75
+      threshold_required: 0.75
+      threshold_result: pass
+      snapshot_tick: 0
+      assumptions_used:
+        - fixed_eligible_snapshot
+  scopes:
+    - scope_id: traffic-closure-scope
+      function: public_safety
+      territory: [district-1]
+      population_affected: [residents]
+      permitted_powers: [close_road]
+      resource_authority: [road-network]
+      enforcement_authority: [citation]
+    - scope_id: traffic-access-scope
+      function: public_safety
+      territory: [district-1]
+      population_affected: [residents]
+      permitted_powers: [open_road]
+      resource_authority: [road-network]
+      enforcement_authority: [citation]
+  authority_charters:
+    - charter_id: traffic-closure-charter
+      scope_id: traffic-closure-scope
+      funding_sources: [authority_surtax]
+      renewal_process: five_year_review
+      oversight_structures: [public_audit]
+      formation_threshold: 0.75
+      approval_record_id: approval-1
+    - charter_id: traffic-access-charter
+      scope_id: traffic-access-scope
+      funding_sources: [authority_surtax]
+      renewal_process: five_year_review
+      oversight_structures: [public_audit]
+      formation_threshold: 0.75
+      approval_record_id: approval-1
+  authorities:
+    - authority_id: traffic-closure-authority
+      charter_id: traffic-closure-charter
+      authority_type: public_safety
+      coercive_status: true
+      scope_id: traffic-closure-scope
+      lifecycle_status: active
+      activation_tick: 0
+      review_due_tick: 1825
+    - authority_id: traffic-access-authority
+      charter_id: traffic-access-charter
+      authority_type: public_safety
+      coercive_status: true
+      scope_id: traffic-access-scope
+      lifecycle_status: active
+      activation_tick: 0
+      review_due_tick: 1825
+event_schedule:
+  - event_type: authority_action
+    submitted_tick: 0
+    effective_tick: 0
+    actor_id: traffic-closure-authority
+    payload:
+      authority_id: traffic-closure-authority
+      directive_type: close_road
+      incompatibility_matrix:
+        close_road: [open_road]
+        open_road: [close_road]
+  - event_type: authority_action
+    submitted_tick: 0
+    effective_tick: 0
+    actor_id: traffic-access-authority
+    payload:
+      authority_id: traffic-access-authority
+      directive_type: open_road
+      incompatibility_matrix:
+        close_road: [open_road]
+        open_road: [close_road]

@@ -17,6 +17,7 @@ from .records import (
     RepresentativeRecord,
     RuleDecision,
     ScopeRecord,
+    ScopeConflictRecord,
     SimulationEvent,
     SubscriberRecord,
     to_primitive,
@@ -35,6 +36,7 @@ class SimulationState:
     authorities: dict[str, AuthorityRecord] = field(default_factory=dict)
     authority_charters: dict[str, AuthorityCharterRecord] = field(default_factory=dict)
     scopes: dict[str, ScopeRecord] = field(default_factory=dict)
+    scope_conflicts: dict[str, ScopeConflictRecord] = field(default_factory=dict)
     approval_records: dict[str, ApprovalRecord] = field(default_factory=dict)
     events: dict[str, SimulationEvent] = field(default_factory=dict)
     rule_decisions: list[RuleDecision] = field(default_factory=list)
@@ -72,6 +74,9 @@ class SimulationState:
     def add_scope(self, record: ScopeRecord) -> None:
         self._add_unique(self.scopes, record.scope_id, record)
 
+    def add_scope_conflict(self, record: ScopeConflictRecord) -> None:
+        self._add_unique(self.scope_conflicts, record.conflict_id, record)
+
     def add_approval_record(self, record: ApprovalRecord) -> None:
         self._add_unique(self.approval_records, record.approval_record_id, record)
 
@@ -92,6 +97,7 @@ class SimulationState:
             "authorities": to_primitive(self.authorities),
             "authority_charters": to_primitive(self.authority_charters),
             "scopes": to_primitive(self.scopes),
+            "scope_conflicts": to_primitive(self.scope_conflicts),
             "approval_records": to_primitive(self.approval_records),
             "events": to_primitive(self.events),
             "rule_decisions": to_primitive(self.rule_decisions),

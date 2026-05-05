@@ -15,6 +15,8 @@ from .outputs import OutputArtifactPaths, RunOutputContext, write_run_outputs
 from .records import (
     ApprovalRecord,
     AuthorityCharterRecord,
+    AuthorityLifecycleState,
+    AuthorityRecord,
     DelegationRecord,
     DelegationStatus,
     RepresentativeRecord,
@@ -144,6 +146,23 @@ def _state_from_scenario(data: dict[str, Any]) -> SimulationState:
                 oversight_structures=list(record["oversight_structures"]),
                 formation_threshold=float(record["formation_threshold"]),
                 approval_record_id=str(record["approval_record_id"]),
+            )
+        )
+
+    for record in initial_state.get("authorities", []):
+        state.add_authority(
+            AuthorityRecord(
+                authority_id=str(record["authority_id"]),
+                charter_id=str(record["charter_id"]),
+                authority_type=str(record["authority_type"]),
+                coercive_status=bool(record["coercive_status"]),
+                scope_id=str(record["scope_id"]),
+                lifecycle_status=AuthorityLifecycleState(
+                    str(record.get("lifecycle_status", "proposed"))
+                ),
+                activation_tick=record.get("activation_tick"),
+                review_due_tick=record.get("review_due_tick"),
+                dissolution_tick=record.get("dissolution_tick"),
             )
         )
 

@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any, Iterable
 
 from .approvals import approval_passes_threshold, authority_formation_threshold
-from .lifecycle import transition_authority
+from .lifecycle import can_execute_ordinary_action, transition_authority
 from .records import (
     AuthorityLifecycleState,
     AuthorityRecord,
@@ -14,6 +14,8 @@ from .records import (
     DelegationStatus,
     EventStatus,
     RuleDecision,
+    ScopeConflictClassification,
+    ScopeConflictRecord,
     SimulationEvent,
 )
 from .state import SimulationState, StateValidationError
@@ -61,6 +63,8 @@ DELEGATION_CREATE_RULE_ID = "SIM-RULE-DELEGATION-CREATE"
 DELEGATION_REVOKE_RULE_ID = "SIM-RULE-DELEGATION-REVOKE"
 DELEGATION_ACTIVATE_RULE_ID = "SIM-RULE-DELEGATION-ACTIVATE"
 AUTHORITY_FORMATION_RULE_ID = "SIM-RULE-AUTHORITY-FORMATION"
+AUTHORITY_ACTION_RULE_ID = "SIM-RULE-AUTHORITY-ACTION"
+SCOPE_CONFLICT_RULE_ID = "SIM-RULE-SCOPE-CONFLICT"
 
 
 @dataclass(slots=True)
@@ -214,6 +218,8 @@ class EventProcessor:
             return self._handle_delegation_transfer(event, tick)
         if event.event_type == "authority_formation":
             return self._handle_authority_formation(event, tick)
+        if event.event_type == "authority_action":
+            return self._handle_authority_action(event, tick)
         return self._record_no_op_decision(event, tick)
 
     def _handle_delegation_create(
@@ -457,6 +463,218 @@ class EventProcessor:
             input_state_hash=pre_state_hash,
         )
 
+    def _handle_authority_action(self, event: SimulationEvent, tick: int) -> RuleDecision:
+        pre_state_hash = self.state.state_hash()
+        authority_id = str(event.payload.get("authority_id") or event.actor_id)
+        authority = self.state.authorities.get(authority_id)
+        if authority is None:
+            event.status = EventStatus.REJECTED
+            return self._record_rule_decision(
+                event,
+                AUTHORITY_ACTION_RULE_ID,
+                "rejected",
+                f"unknown Authority: {authority_id}",
+                tick,
+                input_state_hash=pre_state_hash,
+            )
+        if not can_execute_ordinary_action(
+            authority,
+            review_continuation_allowed=bool(
+                event.payload.get("review_continuation_allowed", False)
+            ),
+        ):
+            event.status = EventStatus.REJECTED
+            return self._record_rule_decision(
+                event,
+                AUTHORITY_ACTION_RULE_ID,
+                "rejected",
+                f"Authority cannot execute ordinary action in state: {authority.lifecycle_status}",
+                tick,
+                input_state_hash=pre_state_hash,
+            )
+
+        conflict_ids = self._detect_scope_conflicts(event, authority, tick)
+        event.status = EventStatus.PROCESSED
+        result = "accepted"
+        reason = "authority action accepted"
+        if conflict_ids:
+            result = "accepted_with_conflicts"
+            reason = f"authority action accepted; conflicts={','.join(conflict_ids)}"
+        return self._record_rule_decision(
+            event,
+            AUTHORITY_ACTION_RULE_ID,
+            result,
+            reason,
+            tick,
+            input_state_hash=pre_state_hash,
+        )
+
+    def _detect_scope_conflicts(
+        self, event: SimulationEvent, authority: AuthorityRecord, tick: int
+    ) -> list[str]:
+        scope = self.state.scopes[authority.scope_id]
+        conflict_ids: list[str] = []
+
+        self_basis = self._self_conflict_basis(event, scope)
+        if self_basis:
+            conflict = self._scope_conflict_record(
+                [authority.authority_id],
+                [scope.scope_id],
+                self_basis,
+                tick,
+                event.event_id,
+            )
+            if self._add_unique_scope_conflict(conflict):
+                conflict_ids.append(conflict.conflict_id)
+
+        for other_event in self._prior_authority_action_events(event, tick):
+            other_authority_id = str(other_event.payload.get("authority_id") or other_event.actor_id)
+            if other_authority_id == authority.authority_id:
+                continue
+            other_authority = self.state.authorities.get(other_authority_id)
+            if (
+                other_authority is None
+                or other_authority.lifecycle_status != AuthorityLifecycleState.ACTIVE
+            ):
+                continue
+            other_scope = self.state.scopes[other_authority.scope_id]
+            basis = self._cross_authority_conflict_basis(
+                event,
+                scope,
+                other_event,
+                other_scope,
+            )
+            if not basis:
+                continue
+            conflict = self._scope_conflict_record(
+                [authority.authority_id, other_authority.authority_id],
+                [scope.scope_id, other_scope.scope_id],
+                basis,
+                tick,
+                event.event_id,
+            )
+            if self._add_unique_scope_conflict(conflict):
+                conflict_ids.append(conflict.conflict_id)
+
+        return conflict_ids
+
+    def _self_conflict_basis(
+        self, event: SimulationEvent, scope: Any
+    ) -> list[ScopeConflictClassification]:
+        basis: list[ScopeConflictClassification] = []
+        requested_powers = set(_text_list(event.payload.get("requested_powers")))
+        if "requested_power" in event.payload:
+            requested_powers.add(str(event.payload["requested_power"]))
+        if requested_powers.intersection(scope.prohibited_powers):
+            basis.append(ScopeConflictClassification.PROHIBITED_POWER)
+
+        enforcement_power = event.payload.get("enforcement_power")
+        if enforcement_power and str(enforcement_power) not in set(scope.enforcement_authority):
+            basis.append(ScopeConflictClassification.ENFORCEMENT)
+        return basis
+
+    def _cross_authority_conflict_basis(
+        self,
+        event: SimulationEvent,
+        scope: Any,
+        other_event: SimulationEvent,
+        other_scope: Any,
+    ) -> list[ScopeConflictClassification]:
+        basis: list[ScopeConflictClassification] = []
+        if _overlaps(scope.territory, other_scope.territory) and self._directives_incompatible(
+            event, other_event
+        ):
+            basis.append(ScopeConflictClassification.TERRITORIAL)
+        if _overlaps(scope.population_affected, other_scope.population_affected) and self._directives_incompatible(
+            event, other_event
+        ):
+            basis.append(ScopeConflictClassification.POPULATION)
+        if _overlaps(scope.resource_authority, other_scope.resource_authority) and (
+            event.payload.get("exclusive_resource_claim")
+            or other_event.payload.get("exclusive_resource_claim")
+        ):
+            basis.append(ScopeConflictClassification.RESOURCE)
+        if (
+            scope.function == other_scope.function
+            and self._powers_incompatible(event, other_event)
+        ):
+            basis.append(ScopeConflictClassification.FUNCTIONAL)
+        return basis
+
+    def _directives_incompatible(
+        self, event: SimulationEvent, other_event: SimulationEvent
+    ) -> bool:
+        directive = event.payload.get("directive_type")
+        other_directive = other_event.payload.get("directive_type")
+        if not directive or not other_directive:
+            return False
+        matrix = _incompatibility_matrix(event.payload, other_event.payload)
+        return str(other_directive) in set(matrix.get(str(directive), [])) or str(directive) in set(
+            matrix.get(str(other_directive), [])
+        )
+
+    def _powers_incompatible(
+        self, event: SimulationEvent, other_event: SimulationEvent
+    ) -> bool:
+        power = event.payload.get("requested_power")
+        other_power = other_event.payload.get("requested_power")
+        if not power or not other_power:
+            return False
+        matrix = _incompatibility_matrix(event.payload, other_event.payload)
+        return str(other_power) in set(matrix.get(str(power), [])) or str(power) in set(
+            matrix.get(str(other_power), [])
+        )
+
+    def _prior_authority_action_events(
+        self, event: SimulationEvent, tick: int
+    ) -> list[SimulationEvent]:
+        return [
+            item
+            for item in self.state.events.values()
+            if item.event_type == "authority_action"
+            and item.event_id != event.event_id
+            and item.status in {EventStatus.PROCESSED, EventStatus.NO_OP}
+            and item.effective_tick == tick
+        ]
+
+    def _scope_conflict_record(
+        self,
+        authority_ids: list[str],
+        scope_ids: list[str],
+        basis: list[ScopeConflictClassification],
+        tick: int,
+        trigger_event_id: str,
+    ) -> ScopeConflictRecord:
+        unique_basis = sorted(set(basis), key=lambda item: item.value)
+        stored_basis = (
+            [ScopeConflictClassification.MIXED]
+            if len(unique_basis) > 1
+            else unique_basis
+        )
+        sorted_authorities = sorted(set(authority_ids))
+        sorted_scopes = sorted(set(scope_ids))
+        classification_key = "+".join(item.value for item in stored_basis)
+        conflict_id = (
+            f"scope-conflict-t{tick}-"
+            f"{'-'.join(sorted_authorities)}-"
+            f"{classification_key}-"
+            f"{'-'.join(sorted_scopes)}"
+        )
+        return ScopeConflictRecord(
+            conflict_id=conflict_id,
+            authority_ids=sorted_authorities,
+            scope_ids=sorted_scopes,
+            conflict_basis=stored_basis,
+            detected_tick=tick,
+            trigger_event_id=trigger_event_id,
+        )
+
+    def _add_unique_scope_conflict(self, conflict: ScopeConflictRecord) -> bool:
+        if conflict.conflict_id in self.state.scope_conflicts:
+            return False
+        self.state.add_scope_conflict(conflict)
+        return True
+
     def _activate_due_delegations(self, tick: int) -> list[RuleDecision]:
         decisions: list[RuleDecision] = []
         for delegation in sorted(
@@ -558,3 +776,27 @@ class EventProcessor:
     def _next_decision_id(self) -> str:
         self._decision_counter += 1
         return f"decision-{self._decision_counter:06d}"
+
+
+def _text_list(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [str(item) for item in value]
+    return [str(value)]
+
+
+def _overlaps(first: list[str], second: list[str]) -> bool:
+    return bool(set(first).intersection(second))
+
+
+def _incompatibility_matrix(*payloads: dict[str, Any]) -> dict[str, list[str]]:
+    matrix: dict[str, list[str]] = {}
+    for payload in payloads:
+        raw_matrix = payload.get("incompatibility_matrix", {})
+        if not isinstance(raw_matrix, dict):
+            continue
+        for key, values in raw_matrix.items():
+            matrix.setdefault(str(key), [])
+            matrix[str(key)].extend(_text_list(values))
+    return matrix

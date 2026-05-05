@@ -9,6 +9,7 @@ from typing import Any
 
 import yaml
 
+from .events import KNOWN_EVENT_TYPES
 from .validation import ValidationReport
 
 
@@ -40,6 +41,64 @@ REQUIRED_SCENARIO_FIELDS = {
     "population_size",
     "agent_distributions",
     "output_settings",
+}
+
+SCENARIO_TEXT_FIELDS = {
+    "scenario_id",
+    "scenario_version",
+    "charter_derivative_path",
+    "tick_duration",
+    "output_path",
+}
+
+INITIAL_STATE_COLLECTION_FIELDS = {
+    "subscribers": {"subscriber_id", "token_id"},
+    "representatives": {"representative_id", "subscriber_id"},
+    "approval_records": {
+        "approval_record_id",
+        "decision_type",
+        "subject_id",
+        "electorate_basis",
+        "eligible_count",
+        "approval_count",
+        "rejection_count",
+        "abstention_count",
+        "approval_ratio",
+        "threshold_required",
+        "threshold_result",
+        "snapshot_tick",
+    },
+    "scopes": {"scope_id", "function"},
+    "authority_charters": {
+        "charter_id",
+        "scope_id",
+        "funding_sources",
+        "renewal_process",
+        "oversight_structures",
+        "formation_threshold",
+        "approval_record_id",
+    },
+    "authorities": {
+        "authority_id",
+        "charter_id",
+        "authority_type",
+        "coercive_status",
+        "scope_id",
+    },
+    "delegations": {
+        "delegation_id",
+        "source_subscriber_id",
+        "target_representative_id",
+        "token_share",
+        "submitted_tick",
+        "activation_tick",
+    },
+}
+
+EVENT_SCHEDULE_REQUIRED_FIELDS = {
+    "event_type",
+    "effective_tick",
+    "actor_id",
 }
 
 
@@ -144,6 +203,14 @@ def validate_scenario(data: dict[str, Any]) -> ValidationReport:
         code="scenario.missing_field",
     )
 
+    for field_name in sorted(SCENARIO_TEXT_FIELDS):
+        if field_name in data and not _is_non_empty_text(data[field_name]):
+            report.error(
+                f"scenario.{field_name}.invalid",
+                f"{field_name} must be a non-empty string",
+                field_name,
+            )
+
     if "random_seed" in data and not isinstance(data["random_seed"], int):
         report.error("scenario.random_seed.invalid", "random_seed must be an integer", "random_seed")
 
@@ -168,6 +235,9 @@ def validate_scenario(data: dict[str, Any]) -> ValidationReport:
             "output_settings must be a mapping",
             "output_settings",
         )
+
+    _validate_initial_state(report, data.get("initial_state"))
+    _validate_event_schedule(report, data.get("event_schedule"))
 
     required_gap_assumptions = data.get("required_gap_assumptions", [])
     gap_assumptions = data.get("gap_assumptions", {})
@@ -206,6 +276,136 @@ def validate_scenario(data: dict[str, Any]) -> ValidationReport:
                 )
 
     return report
+
+
+def _validate_initial_state(report: ValidationReport, initial_state: Any) -> None:
+    if initial_state is None:
+        return
+    if not isinstance(initial_state, dict):
+        report.error(
+            "scenario.initial_state.invalid",
+            "initial_state must be a mapping",
+            "initial_state",
+        )
+        return
+
+    for collection_name, required_fields in INITIAL_STATE_COLLECTION_FIELDS.items():
+        if collection_name not in initial_state:
+            continue
+        collection = initial_state[collection_name]
+        collection_path = f"initial_state.{collection_name}"
+        if not isinstance(collection, list):
+            report.error(
+                "scenario.initial_state.collection.invalid",
+                f"{collection_path} must be a list",
+                collection_path,
+            )
+            continue
+        for index, record in enumerate(collection):
+            record_path = f"{collection_path}.{index}"
+            if not isinstance(record, dict):
+                report.error(
+                    "scenario.initial_state.record.invalid",
+                    f"{record_path} must be a mapping",
+                    record_path,
+                )
+                continue
+            for field_name in sorted(required_fields):
+                if field_name not in record:
+                    report.error(
+                        "scenario.initial_state.record.missing_field",
+                        f"missing required field: {field_name}",
+                        f"{record_path}.{field_name}",
+                    )
+
+
+def _validate_event_schedule(report: ValidationReport, event_schedule: Any) -> None:
+    if event_schedule is None:
+        return
+    if not isinstance(event_schedule, list):
+        report.error(
+            "scenario.event_schedule.invalid",
+            "event_schedule must be a list",
+            "event_schedule",
+        )
+        return
+
+    for index, event in enumerate(event_schedule):
+        event_path = f"event_schedule.{index}"
+        if not isinstance(event, dict):
+            report.error(
+                "scenario.event_schedule.event.invalid",
+                f"{event_path} must be a mapping",
+                event_path,
+            )
+            continue
+        for field_name in sorted(EVENT_SCHEDULE_REQUIRED_FIELDS):
+            if field_name not in event:
+                report.error(
+                    "scenario.event_schedule.event.missing_field",
+                    f"missing required field: {field_name}",
+                    f"{event_path}.{field_name}",
+                )
+        _validate_event_schedule_text_field(report, event, event_path, "event_type")
+        _validate_event_schedule_text_field(report, event, event_path, "actor_id")
+        _validate_event_schedule_text_field(report, event, event_path, "target_id", required=False)
+        _validate_non_negative_int_field(report, event, event_path, "submitted_tick", required=False)
+        _validate_non_negative_int_field(report, event, event_path, "effective_tick")
+        if "event_type" in event and isinstance(event["event_type"], str) and event["event_type"] not in KNOWN_EVENT_TYPES:
+            report.error(
+                "scenario.event_schedule.event_type.unknown",
+                f"unknown event_type: {event['event_type']}",
+                f"{event_path}.event_type",
+            )
+        for field_name in ("payload", "provenance"):
+            if field_name in event and not isinstance(event[field_name], dict):
+                report.error(
+                    f"scenario.event_schedule.{field_name}.invalid",
+                    f"{field_name} must be a mapping",
+                    f"{event_path}.{field_name}",
+                )
+
+
+def _validate_event_schedule_text_field(
+    report: ValidationReport,
+    event: dict[str, Any],
+    event_path: str,
+    field_name: str,
+    required: bool = True,
+) -> None:
+    if field_name not in event:
+        return
+    if event[field_name] is None and not required:
+        return
+    if not _is_non_empty_text(event[field_name]):
+        report.error(
+            f"scenario.event_schedule.{field_name}.invalid",
+            f"{field_name} must be a non-empty string",
+            f"{event_path}.{field_name}",
+        )
+
+
+def _validate_non_negative_int_field(
+    report: ValidationReport,
+    event: dict[str, Any],
+    event_path: str,
+    field_name: str,
+    required: bool = True,
+) -> None:
+    if field_name not in event:
+        return
+    if event[field_name] is None and not required:
+        return
+    if not isinstance(event[field_name], int) or event[field_name] < 0:
+        report.error(
+            f"scenario.event_schedule.{field_name}.invalid",
+            f"{field_name} must be a non-negative integer",
+            f"{event_path}.{field_name}",
+        )
+
+
+def _is_non_empty_text(value: Any) -> bool:
+    return isinstance(value, str) and bool(value)
 
 
 def _validate_required_fields(
