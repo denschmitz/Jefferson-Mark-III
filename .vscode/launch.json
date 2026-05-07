@@ -1,0 +1,65 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Scenario: Basic Delegation Stability",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "jefferson_sim.run_scenario",
+      "cwd": "${workspaceFolder}",
+      "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}\\simulation\\src"
+      },
+      "args": [
+        "simulation/scenarios/basic_delegation_stability.yaml"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Scenario: Authority Creation",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "jefferson_sim.run_scenario",
+      "cwd": "${workspaceFolder}",
+      "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}\\simulation\\src"
+      },
+      "args": [
+        "simulation/scenarios/authority_creation.yaml"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Scenario: Authority Rejection",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "jefferson_sim.run_scenario",
+      "cwd": "${workspaceFolder}",
+      "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}\\simulation\\src"
+      },
+      "args": [
+        "simulation/scenarios/authority_rejection.yaml"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Scenario: Scope Conflict",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "jefferson_sim.run_scenario",
+      "cwd": "${workspaceFolder}",
+      "python": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}\\simulation\\src"
+      },
+      "args": [
+        "simulation/scenarios/scope_conflict.yaml"
+      ],
+      "console": "integratedTerminal"
+    }
+  ]
+}

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 from dataclasses import dataclass
 import hashlib
 import json
@@ -241,3 +242,25 @@ def _hash_file_if_present(base_path: Path, configured_path: str) -> str | None:
         if candidate.exists():
             return hashlib.sha256(candidate.read_bytes()).hexdigest()
     return None
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Run a Jefferson simulation scenario.")
+    parser.add_argument("scenario_path", help="Path to a scenario YAML or JSON file.")
+    parser.add_argument(
+        "--no-outputs",
+        action="store_true",
+        help="Run the scenario without writing output artifacts.",
+    )
+    args = parser.parse_args(argv)
+
+    result = run_scenario_file(args.scenario_path, write_outputs=not args.no_outputs)
+    print(f"scenario_id={result.scenario_id}")
+    print(f"final_state_hash={result.final_state_hash}")
+    if result.output_paths is not None:
+        print(f"output_path={result.output_paths.manifest.parent}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
